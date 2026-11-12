@@ -1,0 +1,5 @@
+# Edge profile cache and logs
+.edge-profile/
+desktop-state.json
+desktop-state.json.tmp
+*.log

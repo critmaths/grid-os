@@ -1,0 +1,3012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GRID//OS — Cyber-Tron Desktop Shell</title>
+<style>
+  :root {
+    --primary: #00f3ff;
+    --primary-dim: rgba(0, 243, 255, 0.18);
+    --primary-glow: rgba(0, 243, 255, 0.65);
+    --secondary: #00ff66;
+    --secondary-dim: rgba(0, 255, 102, 0.16);
+    --secondary-glow: rgba(0, 255, 102, 0.65);
+    --accent: #ff007f;
+    --bg-dark: #03060a;
+    --panel-bg: rgba(4, 12, 20, 0.78);
+    --panel-border: rgba(0, 243, 255, 0.38);
+    --font-mono: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+    --font-hud: 'Segoe UI', 'Orbitron', 'Consolas', sans-serif;
+    --term-color: #00ff66;
+    --term-glow: rgba(0, 255, 102, 0.55);
+  }
+
+  body.theme-matrix {
+    --primary: #00ff66;
+    --primary-dim: rgba(0, 255, 102, 0.18);
+    --primary-glow: rgba(0, 255, 102, 0.7);
+    --panel-border: rgba(0, 255, 102, 0.42);
+    --term-color: #00ff66;
+    --term-glow: rgba(0, 255, 102, 0.65);
+  }
+
+  body.theme-ares {
+    --primary: #ff2a54;
+    --primary-dim: rgba(255, 42, 84, 0.18);
+    --primary-glow: rgba(255, 42, 84, 0.7);
+    --panel-border: rgba(255, 42, 84, 0.45);
+    --term-color: #ff3860;
+    --term-glow: rgba(255, 56, 96, 0.6);
+  }
+
+  body.theme-synthwave {
+    --primary: #ff00a0;
+    --primary-dim: rgba(255, 0, 160, 0.18);
+    --primary-glow: rgba(255, 0, 160, 0.72);
+    --secondary: #00f3ff;
+    --panel-border: rgba(255, 0, 160, 0.48);
+    --term-color: #00f3ff;
+    --term-glow: rgba(0, 243, 255, 0.65);
+    --bg-dark: #090314;
+  }
+
+  body.theme-amber {
+    --primary: #ffb000;
+    --primary-dim: rgba(255, 176, 0, 0.18);
+    --primary-glow: rgba(255, 176, 0, 0.7);
+    --secondary: #ffd166;
+    --panel-border: rgba(255, 176, 0, 0.45);
+    --term-color: #ffb000;
+    --term-glow: rgba(255, 176, 0, 0.65);
+    --bg-dark: #0a0602;
+  }
+
+  body.theme-arctic {
+    --primary: #a8e6ff;
+    --primary-dim: rgba(168, 230, 255, 0.18);
+    --primary-glow: rgba(168, 230, 255, 0.72);
+    --secondary: #70d6ff;
+    --panel-border: rgba(168, 230, 255, 0.45);
+    --term-color: #a8e6ff;
+    --term-glow: rgba(168, 230, 255, 0.6);
+    --bg-dark: #030912;
+  }
+
+  /* ==========================================================================
+     ICON NODE GEOMETRY SHAPES (HEX, CIRCUIT, DIAMOND, PILL)
+     ========================================================================== */
+  body.shape-circuit .node-hex-wrap {
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+  body.shape-diamond .node-hex-wrap {
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  }
+  body.shape-circle .node-hex-wrap {
+    clip-path: none;
+    border-radius: 50%;
+  }
+
+  * {
+    box-sizing: border-box;
+    user-select: none;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--bg-dark);
+    color: #d8f8ff;
+    font-family: var(--font-mono);
+  }
+
+  /* ==========================================================================
+     ANIMATED WALLPAPER CANVAS & CRT SCANLINE LAYER
+     ========================================================================== */
+  #wallpaper-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+  }
+
+  .crt-scanlines {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background:
+      linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.28) 50%),
+      radial-gradient(circle at center, transparent 58%, rgba(0, 0, 0, 0.65) 100%);
+    background-size: 100% 3px, 100% 100%;
+    opacity: 0.75;
+  }
+
+  /* ==========================================================================
+     TOP CYBER TELEMETRY & SHELL CONTROL BAR
+     ========================================================================== */
+  #top-hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 18px;
+    background: linear-gradient(180deg, rgba(2, 10, 18, 0.94) 0%, rgba(2, 10, 18, 0.55) 80%, transparent 100%);
+    border-bottom: 1px solid var(--panel-border);
+    box-shadow: 0 0 24px rgba(0, 243, 255, 0.12);
+    backdrop-filter: blur(8px);
+  }
+
+  .hud-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    color: var(--primary);
+    text-shadow: 0 0 10px var(--primary-glow);
+    font-size: 13px;
+  }
+
+  .hud-pulse {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 12px var(--primary);
+    animation: pulseGlow 1.8s infinite alternate;
+  }
+
+  @keyframes pulseGlow {
+    from { transform: scale(0.85); opacity: 0.6; }
+    to   { transform: scale(1.25); opacity: 1; }
+  }
+
+  /* ==========================================================================
+     DECK / MODE SWITCHER PILLS IN TOP HUD
+     ========================================================================== */
+  .deck-switcher {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0, 12, 22, 0.75);
+    padding: 4px 8px;
+    border: 1px solid var(--panel-border);
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  }
+
+  .deck-switcher-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: rgba(216, 248, 255, 0.6);
+    margin-right: 4px;
+  }
+
+  .deck-tab {
+    background: transparent;
+    border: 1px solid transparent;
+    color: rgba(216, 248, 255, 0.72);
+    padding: 4px 11px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+  }
+
+  .deck-tab:hover {
+    color: #fff;
+    border-color: var(--panel-border);
+  }
+
+  .deck-tab.active {
+    background: var(--primary-dim);
+    color: #fff;
+    border-color: var(--primary);
+    box-shadow: 0 0 12px var(--primary-glow);
+    font-weight: 700;
+  }
+
+  .hud-metrics {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+
+  .metric-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(216, 248, 255, 0.85);
+  }
+
+  .metric-bar {
+    width: 54px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--panel-border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .metric-fill {
+    height: 100%;
+    background: var(--primary);
+    box-shadow: 0 0 8px var(--primary);
+    transition: width 0.4s ease;
+  }
+
+  .hud-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cyber-btn {
+    background: rgba(0, 20, 32, 0.65);
+    color: var(--primary);
+    border: 1px solid var(--panel-border);
+    padding: 5px 9px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+  }
+
+  .cyber-btn:hover, .cyber-btn.active {
+    background: var(--primary-dim);
+    border-color: var(--primary);
+    box-shadow: 0 0 14px var(--primary-glow);
+    color: #fff;
+  }
+
+  /* ==========================================================================
+     DESKTOP WORKSPACE LAYER & SLIDING TRANSITION ENGINE
+     ========================================================================== */
+  #desktop-stage {
+    position: fixed;
+    inset: 48px 0 0 0;
+    z-index: 10;
+    transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.32s ease;
+  }
+
+  #desktop-stage.deck-sliding-out {
+    transform: translateX(-90px) scale(0.96);
+    opacity: 0;
+  }
+
+  #desktop-stage.deck-sliding-in {
+    animation: slideDeckIn 0.48s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes slideDeckIn {
+    0%   { transform: translateX(90px) scale(0.96); opacity: 0; }
+    100% { transform: translateX(0) scale(1); opacity: 1; }
+  }
+
+  .cyber-node {
+    position: absolute;
+    width: 98px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    z-index: 15;
+    transition: left 0.45s cubic-bezier(0.16, 1, 0.3, 1), top 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s ease;
+  }
+
+  .cyber-node.dragging-node {
+    transition: none !important;
+    z-index: 45;
+  }
+
+  .cyber-node.open-node {
+    z-index: 35;
+  }
+
+  .node-hex-wrap {
+    width: 64px;
+    height: 64px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at center, rgba(0, 243, 255, 0.22) 0%, rgba(3, 12, 22, 0.88) 75%);
+    border: 1.5px solid var(--primary);
+    clip-path: polygon(25% 4%, 75% 4%, 98% 50%, 75% 96%, 25% 96%, 2% 50%);
+    box-shadow: 0 0 18px var(--primary-dim), inset 0 0 12px var(--primary-dim);
+    transition: all 0.22s ease;
+  }
+
+  .cyber-node:hover .node-hex-wrap,
+  .cyber-node.open-node .node-hex-wrap {
+    transform: scale(1.1);
+    background: radial-gradient(circle at center, rgba(0, 243, 255, 0.42) 0%, rgba(3, 15, 28, 0.95) 80%);
+    box-shadow: 0 0 28px var(--primary-glow), inset 0 0 15px var(--primary-glow);
+    border-color: #ffffff;
+  }
+
+  .node-icon-svg {
+    width: 26px;
+    height: 26px;
+    stroke: var(--primary);
+    fill: none;
+    stroke-width: 1.8;
+    filter: drop-shadow(0 0 6px var(--primary-glow));
+    transition: all 0.2s ease;
+  }
+
+  .cyber-node:hover .node-icon-svg,
+  .cyber-node.open-node .node-icon-svg {
+    stroke: #ffffff;
+    transform: scale(1.08);
+  }
+
+  .node-badge {
+    position: absolute;
+    top: -3px;
+    right: 6px;
+    background: var(--bg-dark);
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    font-size: 8.5px;
+    padding: 1px 4px;
+    border-radius: 2px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .node-title {
+    margin-top: 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    text-align: center;
+    color: #e2fbff;
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.95), 0 0 8px var(--primary-glow);
+    background: rgba(2, 9, 16, 0.76);
+    padding: 2px 7px;
+    border-left: 2px solid var(--primary);
+    border-right: 2px solid var(--primary);
+    white-space: nowrap;
+  }
+
+  /* ==========================================================================
+     EXPANDING HOLOGRAPHIC DROPDOWN PODS
+     ========================================================================== */
+  .node-dropdown-pod {
+    position: absolute;
+    top: 94px;
+    left: 0;
+    min-width: 315px;
+    max-width: 400px;
+    background: linear-gradient(165deg, rgba(4, 14, 24, 0.94) 0%, rgba(2, 8, 15, 0.97) 100%);
+    border: 1px solid var(--primary);
+    box-shadow:
+      0 14px 40px rgba(0, 0, 0, 0.85),
+      0 0 24px var(--primary-dim),
+      inset 0 0 18px rgba(0, 243, 255, 0.07);
+    backdrop-filter: blur(14px);
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+    opacity: 0;
+    transform: translateY(-12px) scale(0.95);
+    pointer-events: none;
+    transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+    cursor: default;
+  }
+
+  .cyber-node.open-node .node-dropdown-pod {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  .pod-connector {
+    position: absolute;
+    top: 64px;
+    left: 48px;
+    width: 2px;
+    height: 30px;
+    background: linear-gradient(180deg, #fff, var(--primary));
+    box-shadow: 0 0 10px var(--primary);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+  }
+
+  .cyber-node.open-node .pod-connector {
+    opacity: 1;
+  }
+
+  .pod-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: linear-gradient(90deg, var(--primary-dim), transparent);
+    border-bottom: 1px solid var(--panel-border);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--primary);
+    text-transform: uppercase;
+  }
+
+  .pod-header-controls {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .pod-mini-btn {
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--primary);
+    font-size: 10px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    transition: all 0.14s ease;
+  }
+  .pod-mini-btn:hover {
+    background: var(--primary);
+    color: #000;
+  }
+
+  .pod-body {
+    padding: 12px;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  .pod-body::-webkit-scrollbar {
+    width: 5px;
+  }
+  .pod-body::-webkit-scrollbar-thumb {
+    background: var(--primary);
+  }
+
+  /* Sub-icon Grid inside a Pod */
+  .sub-icon-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 9px;
+  }
+
+  .sub-app-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 6px;
+    border: 1px solid rgba(0, 243, 255, 0.2);
+    background: rgba(0, 243, 255, 0.04);
+    cursor: pointer;
+    transition: all 0.16s ease;
+    text-align: center;
+  }
+
+  .sub-app-item:hover {
+    border-color: var(--primary);
+    background: var(--primary-dim);
+    box-shadow: 0 0 12px var(--primary-dim);
+    transform: translateY(-2px);
+  }
+
+  .sub-app-symbol {
+    font-size: 17px;
+    margin-bottom: 4px;
+    color: var(--primary);
+    text-shadow: 0 0 8px var(--primary-glow);
+  }
+
+  .sub-app-label {
+    font-size: 9.5px;
+    color: #e4fbff;
+    letter-spacing: 0.8px;
+  }
+
+  /* File Explorer Pod List */
+  .fs-path-bar {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.65);
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(0, 243, 255, 0.2);
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .fs-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 8px;
+    border-bottom: 1px solid rgba(0, 243, 255, 0.08);
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.14s ease;
+  }
+
+  .fs-row:hover {
+    background: var(--primary-dim);
+    color: #fff;
+  }
+
+  .fs-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 215px;
+  }
+
+  .fs-size {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.48);
+  }
+
+  /* Notes Scratchpad Pod */
+  .cyber-note-area {
+    width: 100%;
+    min-height: 145px;
+    background: rgba(0, 8, 14, 0.75);
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    color: var(--secondary);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.45;
+    padding: 9px;
+    resize: vertical;
+    outline: none;
+    user-select: text;
+    box-shadow: inset 0 0 12px rgba(0, 255, 102, 0.08);
+  }
+
+  /* Synth / Audio Player Pod */
+  .audio-viz-canvas {
+    width: 100%;
+    height: 64px;
+    background: rgba(0, 6, 12, 0.75);
+    border: 1px solid rgba(0, 243, 255, 0.25);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .track-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    font-size: 10.5px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    margin-bottom: 4px;
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .track-list-item:hover, .track-list-item.playing {
+    border-color: var(--primary);
+    background: var(--primary-dim);
+    color: #fff;
+  }
+
+  /* ==========================================================================
+     SLIDING ACTIVITY ASSIST WIDGET DOCK (Social Media / Web & App Dev / Both)
+     ========================================================================== */
+  #sliding-widget-dock {
+    position: fixed;
+    left: 22px;
+    bottom: 24px;
+    width: 480px;
+    max-height: 430px;
+    z-index: 26;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: transform 0.48s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.38s ease;
+  }
+
+  #sliding-widget-dock.dock-hidden {
+    transform: translateX(-540px);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .assist-widget-card {
+    background: linear-gradient(160deg, rgba(4, 14, 24, 0.88) 0%, rgba(2, 8, 15, 0.92) 100%);
+    border: 1px solid var(--panel-border);
+    border-left: 3px solid var(--primary);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), 0 0 18px var(--primary-dim);
+    backdrop-filter: blur(12px);
+    padding: 12px 14px;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  }
+
+  .assist-widget-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    letter-spacing: 1.6px;
+    color: var(--primary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .port-badge-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .port-pill {
+    font-size: 10px;
+    padding: 3px 8px;
+    background: rgba(0, 255, 102, 0.12);
+    border: 1px solid rgba(0, 255, 102, 0.45);
+    color: #00ff66;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .port-pill:hover {
+    background: rgba(0, 255, 102, 0.28);
+    color: #fff;
+  }
+
+  /* ==========================================================================
+     BLEEDING-EDGE DISSOLVING MATRIX TERMINAL
+     ========================================================================== */
+  #dissolving-terminal-wrap {
+    position: fixed;
+    right: 30px;
+    bottom: 20px;
+    width: 650px;
+    height: 415px;
+    z-index: 25;
+    display: flex;
+    flex-direction: column;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+
+  .terminal-dissolve-surface {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 32px 34px 32px;
+    background:
+      radial-gradient(ellipse at 50% 38%, rgba(0, 18, 8, 0.82) 0%, rgba(0, 10, 4, 0.45) 58%, rgba(0, 0, 0, 0) 96%);
+    -webkit-mask-image:
+      linear-gradient(to right, transparent 0%, black 9%, black 91%, transparent 100%),
+      linear-gradient(to bottom, black 0%, black 78%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(to right, transparent 0%, black 9%, black 91%, transparent 100%),
+      linear-gradient(to bottom, black 0%, black 78%, transparent 100%);
+    mask-composite: intersect;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .terminal-top-filament {
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 36px;
+    cursor: move;
+    position: relative;
+  }
+
+  .terminal-top-filament::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 5%;
+    right: 5%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--term-color) 30%, #ffffff 50%, var(--term-color) 70%, transparent 100%);
+    box-shadow: 0 0 12px var(--term-color);
+  }
+
+  .term-header-tag {
+    font-size: 11px;
+    letter-spacing: 2.2px;
+    color: var(--term-color);
+    text-shadow: 0 0 10px var(--term-glow);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #term-output {
+    flex: 1;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: var(--term-color);
+    text-shadow: 0 0 8px var(--term-glow);
+    padding-right: 8px;
+    user-select: text;
+    white-space: pre-wrap;
+    word-break: break-word;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+  }
+
+  #term-output::-webkit-scrollbar {
+    width: 3px;
+  }
+  #term-output::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 102, 0.35);
+  }
+
+  .term-line-cmd {
+    color: #b8ffd8;
+    font-weight: 600;
+  }
+
+  .term-line-sys {
+    color: rgba(0, 255, 102, 0.72);
+    font-style: italic;
+  }
+
+  .term-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(0, 255, 102, 0.22);
+  }
+
+  .term-prompt-label {
+    color: #7dffb3;
+    text-shadow: 0 0 10px var(--term-glow);
+    font-size: 12.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  #term-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #eafff2;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    text-shadow: 0 0 9px var(--term-glow);
+    caret-color: var(--term-color);
+    user-select: text;
+  }
+
+  /* ==========================================================================
+     ONBOARDING & STARTUP PROFILE SELECTOR OVERLAY ("NEURAL MATRIX CALIBRATION")
+     ========================================================================== */
+  #profile-wizard-backdrop {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(2, 14, 24, 0.88) 0%, rgba(1, 4, 8, 0.96) 100%);
+    backdrop-filter: blur(12px);
+    z-index: 120;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #profile-wizard-backdrop.visible {
+    display: flex;
+  }
+
+  .wizard-card {
+    width: 960px;
+    max-width: 96vw;
+    max-height: 92vh;
+    overflow-y: auto;
+    background: linear-gradient(165deg, rgba(4, 16, 28, 0.96) 0%, rgba(2, 7, 14, 0.98) 100%);
+    border: 1.5px solid var(--primary);
+    box-shadow: 0 0 60px rgba(0, 243, 255, 0.25), inset 0 0 30px rgba(0, 243, 255, 0.06);
+    padding: 24px 30px;
+    clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px));
+    animation: wizardPop 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .wizard-step-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--primary);
+    text-transform: uppercase;
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+  }
+
+  .wizard-step-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--panel-border), transparent);
+  }
+
+  /* 6 DEFAULT LOOKS / VISUAL PRESET CARDS IN SETUP WIZARD */
+  .looks-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .look-preset-card {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(2, 8, 16, 0.72);
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  }
+
+  .look-preset-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+  }
+
+  .look-preset-card.selected {
+    border: 1.5px solid var(--primary);
+    box-shadow: 0 0 20px var(--primary-dim);
+    background: rgba(0, 243, 255, 0.12);
+  }
+
+  .look-swatch-bar {
+    height: 28px;
+    width: 100%;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9.5px;
+    letter-spacing: 1px;
+    font-weight: 700;
+  }
+
+  .look-preset-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.8px;
+  }
+
+  .look-preset-meta {
+    font-size: 9.5px;
+    color: rgba(216, 248, 255, 0.65);
+    line-height: 1.35;
+  }
+
+  @keyframes wizardPop {
+    from { transform: scale(0.92) translateY(16px); opacity: 0; }
+    to   { transform: scale(1) translateY(0); opacity: 1; }
+  }
+
+  .wizard-title {
+    font-size: 18px;
+    letter-spacing: 3px;
+    color: var(--primary);
+    text-shadow: 0 0 14px var(--primary-glow);
+    margin: 0 0 6px 0;
+    text-transform: uppercase;
+  }
+
+  .wizard-sub {
+    font-size: 12px;
+    color: rgba(216, 248, 255, 0.72);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  .profile-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .profile-choice-card {
+    border: 1px solid rgba(0, 243, 255, 0.28);
+    background: rgba(0, 20, 34, 0.45);
+    padding: 16px 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  }
+
+  .profile-choice-card:hover {
+    border-color: var(--primary);
+    background: rgba(0, 243, 255, 0.11);
+    transform: translateY(-3px);
+  }
+
+  .profile-choice-card.selected {
+    border: 1.5px solid var(--primary);
+    background: linear-gradient(180deg, rgba(0, 243, 255, 0.22) 0%, rgba(0, 255, 102, 0.08) 100%);
+    box-shadow: 0 0 25px var(--primary-dim);
+  }
+
+  .profile-choice-icon {
+    font-size: 26px;
+    color: var(--primary);
+    text-shadow: 0 0 12px var(--primary-glow);
+  }
+
+  .profile-choice-name {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #fff;
+    text-transform: uppercase;
+  }
+
+  .profile-choice-desc {
+    font-size: 11px;
+    color: rgba(216, 248, 255, 0.72);
+    line-height: 1.45;
+  }
+
+  .wizard-options-box {
+    border: 1px solid rgba(0, 243, 255, 0.24);
+    background: rgba(0, 10, 18, 0.65);
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .wizard-option-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #e2fbff;
+  }
+
+  .cyber-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+
+  .cyber-toggle input {
+    accent-color: var(--primary);
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+  }
+
+  /* ==========================================================================
+     MODAL FOR CREATING NEW SMART NODES ON THE DESKTOP
+     ========================================================================== */
+  #modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 5, 10, 0.78);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #modal-backdrop.visible {
+    display: flex;
+  }
+
+  .cyber-modal {
+    width: 440px;
+    background: rgba(4, 14, 24, 0.96);
+    border: 1px solid var(--primary);
+    box-shadow: 0 0 35px var(--primary-dim);
+    padding: 20px;
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  }
+
+  .cyber-modal h3 {
+    margin: 0 0 14px 0;
+    color: var(--primary);
+    letter-spacing: 2px;
+    font-size: 14px;
+    text-transform: uppercase;
+  }
+
+  .form-group {
+    margin-bottom: 12px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    color: rgba(216, 248, 255, 0.8);
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+  }
+
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    background: rgba(0, 8, 16, 0.9);
+    border: 1px solid var(--panel-border);
+    color: #fff;
+    padding: 7px 10px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+    user-select: text;
+  }
+
+  #holo-preview-toast {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 90;
+    background: rgba(3, 12, 20, 0.95);
+    border: 1px solid var(--primary);
+    box-shadow: 0 0 40px var(--primary-glow);
+    padding: 14px;
+    max-width: 70vw;
+    max-height: 75vh;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #holo-preview-toast.visible {
+    display: flex;
+  }
+
+  /* ==========================================================================
+     EXPLORER//DIET & PARASITIC SHELL OPTIMIZER MODAL
+     ========================================================================== */
+  #diet-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(1, 6, 12, 0.82);
+    backdrop-filter: blur(10px);
+    z-index: 115;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #diet-modal-backdrop.visible {
+    display: flex;
+  }
+
+  .diet-card {
+    width: 680px;
+    max-width: 94vw;
+    background: linear-gradient(165deg, rgba(3, 14, 24, 0.97) 0%, rgba(1, 7, 13, 0.99) 100%);
+    border: 1.5px solid var(--secondary);
+    box-shadow: 0 0 55px rgba(0, 255, 102, 0.25), inset 0 0 24px rgba(0, 255, 102, 0.06);
+    padding: 22px 26px;
+    clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+  }
+
+  .diet-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 14px 0;
+  }
+
+  .diet-stat-box {
+    border: 1px solid rgba(0, 255, 102, 0.32);
+    background: rgba(0, 22, 12, 0.42);
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .diet-stat-val {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--secondary);
+    text-shadow: 0 0 12px var(--secondary-glow);
+  }
+
+  .diet-stat-lbl {
+    font-size: 9.5px;
+    color: rgba(216, 248, 255, 0.68);
+    letter-spacing: 1px;
+    margin-top: 3px;
+  }
+
+  .diet-proc-table {
+    max-height: 165px;
+    overflow-y: auto;
+    border: 1px solid rgba(0, 243, 255, 0.22);
+    background: rgba(0, 6, 12, 0.72);
+    padding: 8px 10px;
+    font-size: 11px;
+    margin-bottom: 14px;
+  }
+
+  .diet-proc-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+</style>
+</head>
+<body>
+
+  <!-- 1. INTERACTIVE ANIMATED WALLPAPER CANVAS -->
+  <canvas id="wallpaper-canvas"></canvas>
+  <div class="crt-scanlines"></div>
+
+  <!-- 2. TOP CYBER TELEMETRY, LIVE DECK SWITCHER & SHELL BAR -->
+  <header id="top-hud">
+    <div class="hud-brand">
+      <div class="hud-pulse"></div>
+      <span>GRID//OS v2.8</span>
+    </div>
+
+    <!-- ONE-CLICK SLIDING WORKSPACE DECK SWITCHER -->
+    <div class="deck-switcher" title="Click any deck to slide its customized nodes & widgets onto your desktop!">
+      <span class="deck-switcher-label">WORKSPACE DECK //</span>
+      <button class="deck-tab" id="deck-btn-social" onclick="switchWorkspaceDeck('social')">⚡ SOCIAL</button>
+      <button class="deck-tab" id="deck-btn-dev" onclick="switchWorkspaceDeck('dev')">⌨️ DEV</button>
+      <button class="deck-tab active" id="deck-btn-both" onclick="switchWorkspaceDeck('both')">💠 BOTH</button>
+      <button class="deck-tab" id="deck-btn-blank" onclick="switchWorkspaceDeck('blank')">∅ NO TEMPLATES</button>
+      <button class="pod-mini-btn" onclick="openProfileWizard()" title="Configure Startup Mode & Profile Wizard">⚙ SETUP</button>
+    </div>
+
+    <div class="hud-metrics">
+      <div class="metric-pill" title="0.04ms Win32 Kernel GetSystemTimes CPU Counter">
+        <span>CPU</span>
+        <div class="metric-bar"><div id="cpu-bar" class="metric-fill" style="width: 18%"></div></div>
+        <span id="cpu-text">18%</span>
+      </div>
+      <div class="metric-pill" title="0.04ms Win32 GlobalMemoryStatusEx RAM Counter">
+        <span>RAM</span>
+        <div class="metric-bar"><div id="ram-bar" class="metric-fill" style="width: 42%"></div></div>
+        <span id="ram-text">42%</span>
+      </div>
+      <div class="metric-pill" onclick="openExplorerDietModal()" style="cursor:pointer; color:var(--secondary); border:1px solid rgba(0,255,102,0.35); padding:2px 7px; background:rgba(0,255,102,0.08);" title="Click to open EXPLORER//DIET & Shell Hollowing Optimizer">
+        <span>⚡ EXPLORER:</span>
+        <span id="explorer-mb-text" style="font-weight:bold;">-- MB</span>
+      </div>
+      <div class="metric-pill" id="clock-display" style="color: var(--primary); font-weight: bold;">
+        00:00:00
+      </div>
+    </div>
+
+    <div class="hud-actions">
+      <button class="cyber-btn" style="border-color:var(--secondary); color:var(--secondary);" onclick="openExplorerDietModal()" title="Hollow explorer.exe memory & de-bloat Windows Shell">🚀 TURBO DIET</button>
+      <button class="cyber-btn active" id="btn-wp-hybrid" onclick="setWallpaperMode('hybrid')">TRON+MATRIX</button>
+      <button class="cyber-btn" id="btn-wp-tron" onclick="setWallpaperMode('tron')">TRON</button>
+      <button class="cyber-btn" id="btn-wp-matrix" onclick="setWallpaperMode('matrix')">MATRIX</button>
+      <button class="cyber-btn" onclick="cycleColorTheme()">THEME</button>
+      <button class="cyber-btn" onclick="openNewNodeModal()">+ NODE</button>
+      <button class="cyber-btn" onclick="pinToDesktopLayer()" title="Pin behind normal windows as your live Desktop Layer">PIN DESKTOP</button>
+      <button class="cyber-btn danger" onclick="shutdownGridOs()" title="Exit GRID//OS and restore native Windows desktop">EXIT SHELL</button>
+    </div>
+  </header>
+
+  <!-- 3. DESKTOP ICON NODES & EXPANDING DROPDOWN PODS -->
+  <main id="desktop-stage"></main>
+
+  <!-- 4. SLIDING ACTIVITY ASSIST WIDGET DOCK (Bottom-Left) -->
+  <aside id="sliding-widget-dock"></aside>
+
+  <!-- 5. BORDERLESS DISSOLVING MATRIX TERMINAL (Edges fade into desktop) -->
+  <section id="dissolving-terminal-wrap">
+    <div class="terminal-top-filament" id="term-drag-handle">
+      <div class="term-header-tag">
+        <span>●</span>
+        <span>MATRIX//SHELL — LIVE POWERSHELL RUNSPACE</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="pod-mini-btn" style="color:var(--term-color); border-color:var(--term-color);" onclick="runQuickCmd('git status')">GIT</button>
+        <button class="pod-mini-btn" style="color:var(--term-color); border-color:var(--term-color);" onclick="runQuickCmd('Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8 Name, Id, WorkingSet64')">PROCS</button>
+        <button class="pod-mini-btn" style="color:var(--term-color); border-color:var(--term-color);" onclick="runQuickCmd('Get-ChildItem | Select-Object Mode, LastWriteTime, Length, Name')">DIR</button>
+        <button class="pod-mini-btn" style="color:var(--term-color); border-color:var(--term-color);" onclick="clearTerminal()">CLR</button>
+      </div>
+    </div>
+
+    <div class="terminal-dissolve-surface" onclick="document.getElementById('term-input').focus()">
+      <div id="term-output"></div>
+      <div class="term-input-row">
+        <span class="term-prompt-label" id="term-prompt">PS C:\Users\critm&gt;</span>
+        <input type="text" id="term-input" autocomplete="off" spellcheck="false" placeholder="Type any PowerShell command (or 'social', 'dev', 'both', 'help')..." />
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. INSTALL / STARTUP WORKSPACE & VISUAL LOOK CALIBRATION WIZARD -->
+  <div id="profile-wizard-backdrop">
+    <div class="wizard-card">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <h2 class="wizard-title">// GRID//OS SETUP & ENVIRONMENT WIZARD</h2>
+          <div class="wizard-sub" style="margin-bottom:14px;">
+            Customize your desktop's <b>Visual Look</b>, <b>Activity Workspace Deck</b>, and <b>Startup Behavior</b>. Clicking any Look below previews it live behind this window!
+          </div>
+        </div>
+        <button class="pod-mini-btn" onclick="document.getElementById('profile-wizard-backdrop').classList.remove('visible')">ESC [X]</button>
+      </div>
+
+      <!-- STEP 1: CHOOSE DEFAULT LOOK (AESTHETIC + WALLPAPER SHADER + NODE SHAPE) -->
+      <div class="wizard-step-label">STEP 01 // SELECT YOUR DEFAULT CYBER LOOK (LIVE PREVIEW)</div>
+      <div class="looks-cards-grid">
+        <div class="look-preset-card selected" id="look-card-tron-legacy" onclick="selectVisualLook('tron-legacy')">
+          <div class="look-swatch-bar" style="background:linear-gradient(135deg, #021224 0%, #00f3ff 55%, #00ff66 100%); color:#000;">TRON + MATRIX</div>
+          <div class="look-preset-title">01. TRON // HYBRID</div>
+          <div class="look-preset-meta">Neon Cyan Grid + Matrix Rain • Hex Nodes</div>
+        </div>
+
+        <div class="look-preset-card" id="look-card-zion-operator" onclick="selectVisualLook('zion-operator')">
+          <div class="look-swatch-bar" style="background:linear-gradient(135deg, #011406 0%, #00ff66 80%); color:#000;">PURE MATRIX</div>
+          <div class="look-preset-title">02. ZION // OPERATOR</div>
+          <div class="look-preset-meta">Phosphor Green Rain • Circuit Chip Nodes</div>
+        </div>
+
+        <div class="look-preset-card" id="look-card-ares-protocol" onclick="selectVisualLook('ares-protocol')">
+          <div class="look-swatch-bar" style="background:linear-gradient(135deg, #1f0208 0%, #ff2a54 85%); color:#fff;">ARES CRIMSON</div>
+          <div class="look-preset-title">03. ARES // PROTOCOL</div>
+          <div class="look-preset-meta">Tactical Red 3D Grid • Diamond Nodes</div>
+        </div>
+
+        <div class="look-preset-card" id="look-card-outrun-1984" onclick="selectVisualLook('outrun-1984')">
+          <div class="look-swatch-bar" style="background:linear-gradient(135deg, #1b0326 0%, #ff00a0 55%, #00f3ff 100%); color:#fff;">SYNTHWAVE</div>
+          <div class="look-preset-title">04. OUTRUN // 1984</div>
+          <div class="look-preset-meta">Magenta & Cyan Sunset Grid • Hex Nodes</div>
+        </div>
+
+        <div class="look-preset-card" id="look-card-blade-amber" onclick="selectVisualLook('blade-amber')">
+          <div class="look-swatch-bar" style="background:linear-gradient(135deg, #1c1002 0%, #ffb000 85%); color:#000;">AMBER CRT</div>
+          <div class="look-preset-title">05. TYRELL // AMBER</div>
+          <div class="look-preset-meta">Gold Mainframe Terminal • Circuit Nodes</div>
+        </div>
+
+        <div class="look-preset-card" id="look-card-ghost-arctic" onclick="selectVisualLook('ghost-arctic')">
+          <div class="look-swatch-bar" style="background:linear-gradient(135deg, #061528 0%, #a8e6ff 85%); color:#000;">CRYO ICE</div>
+          <div class="look-preset-title">06. GHOST // ARCTIC</div>
+          <div class="look-preset-meta">Ice White-Blue Holo Grid • Orb Nodes</div>
+        </div>
+      </div>
+
+      <!-- STEP 2: CHOOSE ACTIVITY WORKSPACE DECK -->
+      <div class="wizard-step-label">STEP 02 // SELECT WHAT YOU USE YOUR DESKTOP FOR (WORKSPACE DECK)</div>
+      <div class="profile-cards-grid">
+        <div class="profile-choice-card" id="wiz-card-social" onclick="selectWizardProfile('social')">
+          <div class="profile-choice-icon">⚡</div>
+          <div class="profile-choice-name">Social Media & Creator</div>
+          <div class="profile-choice-desc">
+            • <b>SOCIAL//NEXUS</b> pod (X, Discord, YouTube, Reddit, Twitch, TikTok)<br/>
+            • <b>MEDIA//DROPBOX</b> instant Pictures/Videos previewer<br/>
+            • <b>POST//STUDIO</b> Widget with 280-char counter & hashtag injector
+          </div>
+        </div>
+
+        <div class="profile-choice-card" id="wiz-card-dev" onclick="selectWizardProfile('dev')">
+          <div class="profile-choice-icon">⌨️</div>
+          <div class="profile-choice-name">Web & App Development</div>
+          <div class="profile-choice-desc">
+            • <b>DEV//FORGE</b> IDE & Toolchain launcher pod<br/>
+            • <b>CODE//REPOS</b> live workspace file explorer<br/>
+            • <b>PORT//RADAR</b> Widget scanning active localhost dev servers
+          </div>
+        </div>
+
+        <div class="profile-choice-card selected" id="wiz-card-both" onclick="selectWizardProfile('both')">
+          <div class="profile-choice-icon">💠</div>
+          <div class="profile-choice-name">Omni-Deck (Both)</div>
+          <div class="profile-choice-desc">
+            • Full command deck combining <b>Social Media + Web/App Dev</b> smart nodes<br/>
+            • Dual-tabbed <b>Dev Port Radar + Social Post Studio</b> widget dock<br/>
+            • Seamless 1-click sliding transitions anytime!
+          </div>
+        </div>
+
+        <div class="profile-choice-card" id="wiz-card-blank" onclick="selectWizardProfile('blank')">
+          <div class="profile-choice-icon">∅</div>
+          <div class="profile-choice-name">No Templates (Blank)</div>
+          <div class="profile-choice-desc">
+            • Pure minimalist <b>Animated Canvas + Dissolving Terminal</b><br/>
+            • Zero pre-made widgets or template clutter<br/>
+            • Build your own custom Smart Nodes from scratch with <b>[+ NODE]</b>!
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: STARTUP & WINDOWS BOOT PREFERENCES -->
+      <div class="wizard-step-label">STEP 03 // STARTUP & LAUNCH PREFERENCES</div>
+      <div class="wizard-options-box">
+        <div class="wizard-option-row">
+          <div>
+            <div style="font-weight:700; color:var(--primary);">Ask which mode & look to load every time GRID//OS starts?</div>
+            <div style="font-size:10.5px; color:rgba(216,248,255,0.6);">Great if you use Social Media some days and Web/App Dev on others—choose your vibe on launch!</div>
+          </div>
+          <label class="cyber-toggle">
+            <input type="checkbox" id="wiz-ask-every-start" checked />
+            <span>ASK ON EVERY LAUNCH</span>
+          </label>
+        </div>
+
+        <div class="wizard-option-row" style="border-top:1px solid rgba(0,243,255,0.14); padding-top:10px;">
+          <div>
+            <div style="font-weight:700; color:var(--secondary);">Launch GRID//OS automatically when Windows starts?</div>
+            <div style="font-size:10.5px; color:rgba(216,248,255,0.6);">Registers `launch-grid-os.bat` in your Windows User Startup (`HKCU\...\Run`).</div>
+          </div>
+          <label class="cyber-toggle">
+            <input type="checkbox" id="wiz-win-autostart" />
+            <span>START WITH WINDOWS</span>
+          </label>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:11px; color:rgba(216,248,255,0.55);">Tip: Switch decks or reopen `[⚙ SETUP]` from the top bar anytime.</span>
+        <button class="cyber-btn active" style="padding:9px 22px; font-size:12px;" onclick="applyWizardSelection()">ENGAGE CYBER ENVIRONMENT ➔</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. MODAL TO ADD CUSTOM SMART NODE -->
+  <div id="modal-backdrop">
+    <div class="cyber-modal">
+      <h3>// DEPLOY NEW DESKTOP SMART NODE</h3>
+      <div class="form-group">
+        <label>NODE LABEL</label>
+        <input type="text" id="new-node-title" placeholder="e.g. PROJECT_VAULT or STREAM_DECK" />
+      </div>
+      <div class="form-group">
+        <label>DROPDOWN POD TYPE</label>
+        <select id="new-node-type">
+          <option value="files">Live File Explorer Dropdown (Real OS Directory)</option>
+          <option value="subgrid">Sub-Box of Desktop Icons / App & URL Launchers</option>
+          <option value="notes">Encrypted / Neon Scratchpad Notes</option>
+          <option value="audio">Cyber Synth & Audio Visualizer Pod</option>
+          <option value="holo">Holo-Art / 3D Wireframe Construct</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>TARGET FOLDER PATH OR INITIAL NOTE (OPTIONAL)</label>
+        <input type="text" id="new-node-target" placeholder="e.g. C:\Users\critm\Desktop or DOWNLOADS" />
+      </div>
+      <div class="form-group">
+        <label>TRIGGER MODE</label>
+        <select id="new-node-trigger">
+          <option value="both">Hover OR Click to Expand Dropdown</option>
+          <option value="click">Click Only</option>
+        </select>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+        <button class="cyber-btn" onclick="closeNewNodeModal()">CANCEL</button>
+        <button class="cyber-btn active" onclick="createCustomNode()">DEPLOY NODE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. FLOATING HOLO FILE/IMAGE PREVIEW -->
+  <div id="holo-preview-toast">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span id="preview-title" style="color:var(--primary); font-size:12px; letter-spacing:1.5px;">HOLO//PREVIEW</span>
+      <button class="pod-mini-btn" onclick="closeHoloPreview()">CLOSE [X]</button>
+    </div>
+    <div id="preview-content" style="max-height:60vh; overflow:auto; font-size:12px; color:#d8f8ff;"></div>
+  </div>
+
+  <!-- 9. EXPLORER//DIET & PARASITIC SHELL HOLLOWING ENGINE MODAL -->
+  <div id="diet-modal-backdrop">
+    <div class="diet-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <h3 style="margin:0; color:var(--secondary); letter-spacing:2.5px; font-size:15px;">🚀 EXPLORER//DIET :: SHELL HOLLOWING & TURBO ENGINE</h3>
+        <button class="pod-mini-btn" onclick="closeExplorerDietModal()">ESC [X]</button>
+      </div>
+      <div style="font-size:11.5px; color:rgba(216,248,255,0.75); line-height:1.45;">
+        Directly commands Windows Kernel (<code style="color:var(--primary);">psapi.dll!EmptyWorkingSet</code> + <code style="color:var(--primary);">user32.dll</code>) to strip unused RAM pages from <code style="color:var(--secondary);">explorer.exe</code>, suspend Windows 11 Web/Widget bloat, and hibernate shaders at <b>0.0% GPU</b> whenever another app is maximized.
+      </div>
+
+      <div class="diet-stat-grid">
+        <div class="diet-stat-box">
+          <div class="diet-stat-val" id="diet-stat-explorer">-- MB</div>
+          <div class="diet-stat-lbl">EXPLORER.EXE FOOTPRINT</div>
+        </div>
+        <div class="diet-stat-box">
+          <div class="diet-stat-val" id="diet-stat-saved" style="color:var(--primary);">0.0 MB</div>
+          <div class="diet-stat-lbl">RAM RECLAIMED THIS SESSION</div>
+        </div>
+        <div class="diet-stat-box">
+          <div class="diet-stat-val" id="diet-stat-latency">0.04 ms</div>
+          <div class="diet-stat-lbl">KERNEL TELEMETRY SPEED</div>
+        </div>
+      </div>
+
+      <div class="wizard-options-box" style="margin-bottom:14px;">
+        <div class="wizard-option-row">
+          <div>
+            <div style="font-weight:700; color:var(--secondary);">Unmap Native Desktop Icons (SHELLDLL_DefView)</div>
+            <div style="font-size:10px; color:rgba(216,248,255,0.6);">Stops explorer.exe from rendering legacy desktop icon overlays & thumbnail caches.</div>
+          </div>
+          <label class="cyber-toggle">
+            <input type="checkbox" id="diet-opt-icons" checked />
+            <span>UNMAP ICONS</span>
+          </label>
+        </div>
+
+        <div class="wizard-option-row" style="border-top:1px solid rgba(0,243,255,0.14); padding-top:8px;">
+          <div>
+            <div style="font-weight:700; color:var(--primary);">Terminate Windows 11 Web Widgets Bloat (Widgets.exe)</div>
+            <div style="font-size:10px; color:rgba(216,248,255,0.6);">Kills background EdgeWebView news/weather feed processes eating RAM in the tray.</div>
+          </div>
+          <label class="cyber-toggle">
+            <input type="checkbox" id="diet-opt-widgets" checked />
+            <span>KILL WIDGET BLOAT</span>
+          </label>
+        </div>
+
+        <div class="wizard-option-row" style="border-top:1px solid rgba(0,243,255,0.14); padding-top:8px;">
+          <div>
+            <div style="font-weight:700; color:#ffb000;">Hyper-Snap 0ms Window Animations (SystemParametersInfo)</div>
+            <div style="font-size:10px; color:rgba(216,248,255,0.6);">Strips sluggish menu/list fade delays in explorer.exe for instant terminal-grade response.</div>
+          </div>
+          <label class="cyber-toggle">
+            <input type="checkbox" id="diet-opt-hypersnap" checked />
+            <span>0ms HYPER-SNAP</span>
+          </label>
+        </div>
+
+        <div class="wizard-option-row" style="border-top:1px solid rgba(0,243,255,0.14); padding-top:8px;">
+          <div>
+            <div style="font-weight:700; color:#00f3ff;">Zero-GPU Auto-Occlusion Hibernation</div>
+            <div style="font-size:10px; color:rgba(216,248,255,0.6);">Automatically pauses 60fps Canvas shaders (0% GPU/CPU) when another app covers the desktop.</div>
+          </div>
+          <label class="cyber-toggle">
+            <input type="checkbox" id="diet-opt-occlusion" checked />
+            <span>AUTO-SLEEP SHADERS</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="diet-proc-table" id="diet-proc-log">
+        <div style="color:rgba(216,248,255,0.6);">Click <b>[⚡ ENGAGE EXPLORER//DIET NOW]</b> below to hollow Windows Shell working sets and view per-process RAM savings...</div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <button class="cyber-btn" onclick="restoreStockExplorer()">RESTORE STOCK EXPLORER</button>
+        <button class="cyber-btn active" style="border-color:var(--secondary); background:rgba(0,255,102,0.22); color:#fff; padding:9px 20px; font-size:12px;" onclick="executeExplorerDiet()">⚡ ENGAGE EXPLORER//DIET NOW</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const GRID_SESSION_TOKEN = "__GRID_OS_TOKEN__";
+
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// Automatically attach X-Grid-Token CSRF header to all local API requests
+const _nativeFetch = window.fetch.bind(window);
+window.fetch = function(resource, init = {}) {
+  const headers = new Headers(init.headers || {});
+  headers.set('X-Grid-Token', GRID_SESSION_TOKEN);
+  return _nativeFetch(resource, { ...init, headers });
+};
+
+/* ============================================================================
+   1. ANIMATED WALLPAPER ENGINE (Matrix Katakana Rain + 3D Tron Horizon Grid)
+   ============================================================================ */
+const canvas = document.getElementById('wallpaper-canvas');
+const ctx = canvas.getContext('2d');
+let wpMode = 'hybrid';
+let themeIndex = 0;
+const themes = ['theme-tron', 'theme-matrix', 'theme-ares', 'theme-synthwave', 'theme-amber', 'theme-arctic'];
+const shapes = ['shape-hex', 'shape-circuit', 'shape-diamond', 'shape-circle'];
+let audioEnergy = 0;
+
+const VISUAL_LOOK_PRESETS = {
+  'tron-legacy':   { theme: 'theme-tron',      wp: 'hybrid', shape: 'shape-hex',     primaryHex: '#00f3ff', rainHex: '#00ff66' },
+  'zion-operator': { theme: 'theme-matrix',    wp: 'matrix', shape: 'shape-circuit', primaryHex: '#00ff66', rainHex: '#00ff66' },
+  'ares-protocol': { theme: 'theme-ares',      wp: 'tron',   shape: 'shape-diamond', primaryHex: '#ff2a54', rainHex: '#ff2a54' },
+  'outrun-1984':   { theme: 'theme-synthwave', wp: 'tron',   shape: 'shape-hex',     primaryHex: '#ff00a0', rainHex: '#00f3ff' },
+  'blade-amber':   { theme: 'theme-amber',     wp: 'hybrid', shape: 'shape-circuit', primaryHex: '#ffb000', rainHex: '#ffb000' },
+  'ghost-arctic':  { theme: 'theme-arctic',    wp: 'tron',   shape: 'shape-circle',  primaryHex: '#a8e6ff', rainHex: '#a8e6ff' }
+};
+let activeVisualLook = 'tron-legacy';
+
+function selectVisualLook(lookId) {
+  const preset = VISUAL_LOOK_PRESETS[lookId];
+  if (!preset) return;
+  activeVisualLook = lookId;
+  if (typeof appState !== 'undefined') appState.visualLook = lookId;
+
+  // Highlight selected look card in wizard
+  Object.keys(VISUAL_LOOK_PRESETS).forEach(k => {
+    const card = document.getElementById(`look-card-${k}`);
+    if (card) card.classList.toggle('selected', k === lookId);
+  });
+
+  // Apply CSS theme + icon geometry shape
+  document.body.classList.remove(...themes, ...shapes);
+  if (preset.theme !== 'theme-tron') document.body.classList.add(preset.theme);
+  if (preset.shape !== 'shape-hex') document.body.classList.add(preset.shape);
+
+  // Apply wallpaper shader mode
+  setWallpaperMode(preset.wp);
+}
+
+let W = window.innerWidth;
+let H = window.innerHeight;
+canvas.width = W;
+canvas.height = H;
+
+const matrixChars = 'ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789ABCDEF<>/{}[]#$*+=';
+const fontSize = 15;
+let columns = Math.floor(W / fontSize);
+let drops = Array.from({ length: columns }, () => Math.random() * -50);
+
+let gridOffset = 0;
+const ripples = [];
+
+window.addEventListener('resize', () => {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W;
+  canvas.height = H;
+  columns = Math.floor(W / fontSize);
+  drops = Array.from({ length: columns }, () => Math.random() * -50);
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (Math.random() < 0.25) {
+    ripples.push({ x: e.clientX, y: e.clientY, r: 2, alpha: 0.55 });
+  }
+});
+
+window.addEventListener('click', (e) => {
+  ripples.push({ x: e.clientX, y: e.clientY, r: 5, alpha: 0.95, fast: true });
+});
+
+function setWallpaperMode(mode) {
+  wpMode = mode;
+  document.getElementById('btn-wp-hybrid').classList.toggle('active', mode === 'hybrid');
+  document.getElementById('btn-wp-tron').classList.toggle('active', mode === 'tron');
+  document.getElementById('btn-wp-matrix').classList.toggle('active', mode === 'matrix');
+}
+
+function cycleColorTheme() {
+  const lookKeys = Object.keys(VISUAL_LOOK_PRESETS);
+  const idx = (lookKeys.indexOf(activeVisualLook) + 1) % lookKeys.length;
+  selectVisualLook(lookKeys[idx]);
+  saveDesktopState();
+}
+
+let desktopOccluded = false;
+let totalSessionSavedMB = 0;
+
+function drawWallpaper() {
+  const autoSleepEnabled = document.getElementById('diet-opt-occlusion') ? document.getElementById('diet-opt-occlusion').checked : true;
+  if (autoSleepEnabled && (document.hidden || desktopOccluded)) {
+    setTimeout(() => requestAnimationFrame(drawWallpaper), 500);
+    return;
+  }
+
+  ctx.fillStyle = wpMode === 'matrix' ? 'rgba(2, 6, 4, 0.14)' : 'rgba(3, 6, 11, 0.24)';
+  ctx.fillRect(0, 0, W, H);
+
+  const curLook = VISUAL_LOOK_PRESETS[activeVisualLook] || VISUAL_LOOK_PRESETS['tron-legacy'];
+  const primaryHex = curLook.primaryHex;
+  const matrixHex = curLook.rainHex;
+
+  if (wpMode === 'matrix' || wpMode === 'hybrid') {
+    ctx.font = `${fontSize}px Consolas, monospace`;
+    const maxRainHeight = wpMode === 'hybrid' ? H * 0.68 : H;
+
+    for (let i = 0; i < drops.length; i++) {
+      const char = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+      const x = i * fontSize;
+      const y = drops[i] * fontSize;
+
+      if (y > 0 && y < maxRainHeight) {
+        ctx.fillStyle = '#d8ffe8';
+        ctx.fillText(char, x, y);
+        ctx.fillStyle = wpMode === 'hybrid' ? 'rgba(0, 255, 102, 0.48)' : matrixHex;
+        ctx.fillText(matrixChars[Math.floor(Math.random() * matrixChars.length)], x, y - fontSize);
+      }
+
+      if (y > maxRainHeight && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+      drops[i] += 0.55 + (audioEnergy * 0.6);
+    }
+  }
+
+  if (wpMode === 'tron' || wpMode === 'hybrid') {
+    const horizonY = H * 0.54;
+    const grad = ctx.createLinearGradient(0, horizonY - 80, 0, H);
+    grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    grad.addColorStop(0.18, primaryHex + '33');
+    grad.addColorStop(1, 'rgba(2, 8, 16, 0.85)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, horizonY - 80, W, H - horizonY + 80);
+
+    // Optional Synthwave Retro Sun for Outrun 1984 look
+    if (activeVisualLook === 'outrun-1984') {
+      ctx.save();
+      const sunGrad = ctx.createLinearGradient(0, horizonY - 150, 0, horizonY);
+      sunGrad.addColorStop(0, '#ffea00');
+      sunGrad.addColorStop(0.5, '#ff5500');
+      sunGrad.addColorStop(1, '#ff00a0');
+      ctx.fillStyle = sunGrad;
+      ctx.shadowColor = '#ff00a0';
+      ctx.shadowBlur = 35;
+      ctx.beginPath();
+      ctx.arc(W * 0.5, horizonY - 12, 95, Math.PI, 0, false);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.strokeStyle = primaryHex;
+    ctx.lineWidth = 1 + audioEnergy * 1.4;
+    ctx.shadowColor = primaryHex;
+    ctx.shadowBlur = 8 + audioEnergy * 14;
+
+    const vanishX = W * 0.5;
+    const numRays = 28;
+    ctx.beginPath();
+    for (let i = -numRays; i <= numRays; i++) {
+      const bottomX = vanishX + i * (W / 12);
+      ctx.moveTo(vanishX, horizonY);
+      ctx.lineTo(bottomX, H);
+    }
+    ctx.globalAlpha = 0.36 + audioEnergy * 0.25;
+    ctx.stroke();
+
+    gridOffset = (gridOffset + 1.4 + audioEnergy * 3.5) % 40;
+    ctx.beginPath();
+    for (let d = 1; d < 22; d++) {
+      const norm = (d * 40 + gridOffset) / 880;
+      const y = horizonY + Math.pow(norm, 2.15) * (H - horizonY);
+      if (y >= horizonY && y <= H) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(W, y);
+      }
+    }
+    ctx.globalAlpha = 0.48 + audioEnergy * 0.3;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const rp = ripples[i];
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+    ctx.strokeStyle = primaryHex;
+    ctx.globalAlpha = rp.alpha;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    rp.r += rp.fast ? 4.2 : 1.8;
+    rp.alpha -= rp.fast ? 0.03 : 0.018;
+    if (rp.alpha <= 0) ripples.splice(i, 1);
+  }
+
+  audioEnergy *= 0.92;
+  requestAnimationFrame(drawWallpaper);
+}
+requestAnimationFrame(drawWallpaper);
+
+/* ============================================================================
+   2. WORKSPACE PROFILE DECKS ("SOCIAL", "DEV", "BOTH") & SLIDING TRANSITIONS
+   ============================================================================ */
+const DECK_PRESETS = {
+  social: [
+    {
+      id: 'social-hub',
+      title: 'SOCIAL//NEXUS',
+      badge: 'SOCIAL',
+      type: 'subgrid',
+      trigger: 'both',
+      x: 38,
+      y: 28,
+      icon: 'grid',
+      apps: [
+        { label: 'X / TWITTER', symbol: '𝕏', cmd: 'https://x.com' },
+        { label: 'DISCORD', symbol: '💬', cmd: 'https://discord.com/app' },
+        { label: 'YOUTUBE', symbol: '▶', cmd: 'https://youtube.com' },
+        { label: 'REDDIT', symbol: '👽', cmd: 'https://reddit.com' },
+        { label: 'TWITCH', symbol: '📺', cmd: 'https://twitch.tv' },
+        { label: 'TIKTOK', symbol: '♪', cmd: 'https://tiktok.com' }
+      ]
+    },
+    {
+      id: 'social-media-drop',
+      title: 'MEDIA//DROPBOX',
+      badge: 'PICS',
+      type: 'files',
+      trigger: 'both',
+      x: 175,
+      y: 28,
+      icon: 'folder',
+      path: 'PICTURES'
+    },
+    {
+      id: 'social-content-ideas',
+      title: 'CONTENT//IDEAS',
+      badge: 'NOTE',
+      type: 'notes',
+      trigger: 'both',
+      x: 312,
+      y: 28,
+      icon: 'note',
+      noteContent: "// CREATOR & SOCIAL CONTENT QUEUE\n[ ] Post desktop showcase clip\n[ ] Stream coding/gaming session\n[ ] Check community replies on Discord & X\n#CyberDesktop #TronUI #SetupWars"
+    },
+    {
+      id: 'social-synth',
+      title: 'SYNTH//WAVE',
+      badge: 'AUDIO',
+      type: 'audio',
+      trigger: 'both',
+      x: 449,
+      y: 28,
+      icon: 'audio'
+    },
+    {
+      id: 'social-holo',
+      title: 'HOLO//ART',
+      badge: 'VISUAL',
+      type: 'holo',
+      trigger: 'both',
+      x: 586,
+      y: 28,
+      icon: 'image'
+    }
+  ],
+
+  dev: [
+    {
+      id: 'dev-forge',
+      title: 'DEV//FORGE',
+      badge: 'IDE',
+      type: 'subgrid',
+      trigger: 'both',
+      x: 38,
+      y: 28,
+      icon: 'grid',
+      apps: [
+        { label: 'VS CODE', symbol: '⚡', cmd: 'code' },
+        { label: 'GITHUB', symbol: '🐙', cmd: 'https://github.com' },
+        { label: 'LOCAL:3000', symbol: '🌐', cmd: 'http://localhost:3000' },
+        { label: 'LOCAL:5173', symbol: '🔥', cmd: 'http://localhost:5173' },
+        { label: 'TERMINAL', symbol: '>_', cmd: 'wt.exe' },
+        { label: 'TASK MGR', symbol: '❖', cmd: 'taskmgr.exe' }
+      ]
+    },
+    {
+      id: 'dev-repos',
+      title: 'CODE//REPOS',
+      badge: 'SRC',
+      type: 'files',
+      trigger: 'both',
+      x: 175,
+      y: 28,
+      icon: 'folder',
+      path: 'SCRATCH'
+    },
+    {
+      id: 'dev-snippets',
+      title: 'SNIPPET//VAULT',
+      badge: 'CODE',
+      type: 'notes',
+      trigger: 'both',
+      x: 312,
+      y: 28,
+      icon: 'note',
+      noteContent: "// DEV SNIPPETS & TODO\n- git checkout -b feat/cyber-shell\n- cargo run --release\n- Check active localhost ports in the Port Radar widget below!"
+    },
+    {
+      id: 'dev-synth',
+      title: 'FOCUS//SYNTH',
+      badge: 'AUDIO',
+      type: 'audio',
+      trigger: 'both',
+      x: 449,
+      y: 28,
+      icon: 'audio'
+    }
+  ],
+
+  both: [
+    {
+      id: 'both-dev-forge',
+      title: 'DEV//FORGE',
+      badge: 'DEV',
+      type: 'subgrid',
+      trigger: 'both',
+      x: 38,
+      y: 28,
+      icon: 'grid',
+      apps: [
+        { label: 'VS CODE', symbol: '⚡', cmd: 'code' },
+        { label: 'GITHUB', symbol: '🐙', cmd: 'https://github.com' },
+        { label: 'LOCAL:3000', symbol: '🌐', cmd: 'http://localhost:3000' },
+        { label: 'TERMINAL', symbol: '>_', cmd: 'wt.exe' },
+        { label: 'EXPLORER', symbol: '◈', cmd: 'explorer.exe' },
+        { label: 'TASK MGR', symbol: '❖', cmd: 'taskmgr.exe' }
+      ]
+    },
+    {
+      id: 'both-social-hub',
+      title: 'SOCIAL//NEXUS',
+      badge: 'SOCIAL',
+      type: 'subgrid',
+      trigger: 'both',
+      x: 168,
+      y: 28,
+      icon: 'grid',
+      apps: [
+        { label: 'X / TWITTER', symbol: '𝕏', cmd: 'https://x.com' },
+        { label: 'DISCORD', symbol: '💬', cmd: 'https://discord.com/app' },
+        { label: 'YOUTUBE', symbol: '▶', cmd: 'https://youtube.com' },
+        { label: 'REDDIT', symbol: '👽', cmd: 'https://reddit.com' },
+        { label: 'TWITCH', symbol: '📺', cmd: 'https://twitch.tv' },
+        { label: 'TIKTOK', symbol: '♪', cmd: 'https://tiktok.com' }
+      ]
+    },
+    {
+      id: 'both-files',
+      title: 'DATA//VAULT',
+      badge: 'FILES',
+      type: 'files',
+      trigger: 'both',
+      x: 298,
+      y: 28,
+      icon: 'folder',
+      path: 'HOME'
+    },
+    {
+      id: 'both-notes',
+      title: 'NEURAL//LOG',
+      badge: 'NOTE',
+      type: 'notes',
+      trigger: 'both',
+      x: 428,
+      y: 28,
+      icon: 'note',
+      noteContent: "// OMNI-DECK SCRATCHPAD (DEV + SOCIAL)\n- Click [⚡ SOCIAL], [⌨️ WEB/APP DEV], or [💠 OMNI] in the top bar to slide workspaces!\n- Hover or click any Hex Node to expand its holographic dropdown pod."
+    },
+    {
+      id: 'both-synth',
+      title: 'SYNTH//WAVE',
+      badge: 'AUDIO',
+      type: 'audio',
+      trigger: 'both',
+      x: 558,
+      y: 28,
+      icon: 'audio'
+    },
+    {
+      id: 'both-holo',
+      title: 'HOLO//CORE',
+      badge: 'VISUAL',
+      type: 'holo',
+      trigger: 'both',
+      x: 688,
+      y: 28,
+      icon: 'image'
+    }
+  ],
+
+  blank: []
+};
+
+let appState = {
+  activeDeck: 'both',
+  askOnStartup: true,
+  winAutoStart: false,
+  firstSetupDone: false,
+  decks: JSON.parse(JSON.stringify(DECK_PRESETS))
+};
+
+let desktopNodes = appState.decks[appState.activeDeck];
+let wizardSelectedProfile = 'both';
+
+function switchWorkspaceDeck(deckName, skipAnimation = false) {
+  if (!DECK_PRESETS[deckName]) return;
+  appState.activeDeck = deckName;
+  wizardSelectedProfile = deckName;
+
+  document.getElementById('deck-btn-social').classList.toggle('active', deckName === 'social');
+  document.getElementById('deck-btn-dev').classList.toggle('active', deckName === 'dev');
+  document.getElementById('deck-btn-both').classList.toggle('active', deckName === 'both');
+  const blankBtn = document.getElementById('deck-btn-blank');
+  if (blankBtn) blankBtn.classList.toggle('active', deckName === 'blank');
+
+  const stage = document.getElementById('desktop-stage');
+  const dock = document.getElementById('sliding-widget-dock');
+
+  if (!Array.isArray(appState.decks[deckName])) {
+    appState.decks[deckName] = JSON.parse(JSON.stringify(DECK_PRESETS[deckName]));
+  }
+  desktopNodes = appState.decks[deckName];
+
+  if (skipAnimation) {
+    renderDesktopNodes();
+    renderAssistWidgetDock(deckName);
+    if (deckName === 'blank') dock.classList.add('dock-hidden');
+    else dock.classList.remove('dock-hidden');
+    return;
+  }
+
+  // Slide current nodes & widgets out, then slide the new deck in!
+  audioEnergy = 0.85;
+  stage.classList.remove('deck-sliding-in');
+  stage.classList.add('deck-sliding-out');
+  dock.classList.add('dock-hidden');
+
+  setTimeout(() => {
+    renderDesktopNodes();
+    renderAssistWidgetDock(deckName);
+    stage.classList.remove('deck-sliding-out');
+    stage.classList.add('deck-sliding-in');
+    if (deckName !== 'blank') {
+      dock.classList.remove('dock-hidden');
+    }
+    saveDesktopState();
+  }, 280);
+}
+
+/* ============================================================================
+   3. ACTIVITY ASSIST WIDGETS (Social Post Drafter / Dev Port & Git Radar)
+   ============================================================================ */
+let omniWidgetTab = 'dev';
+
+function renderAssistWidgetDock(deckName) {
+  const dock = document.getElementById('sliding-widget-dock');
+  if (!dock) return;
+
+  if (deckName === 'blank') {
+    dock.innerHTML = '';
+    dock.classList.add('dock-hidden');
+    return;
+  }
+
+  if (deckName === 'social') {
+    dock.innerHTML = buildSocialAssistWidgetHtml(false);
+    bindSocialDraftEvents();
+  } else if (deckName === 'dev') {
+    dock.innerHTML = buildDevAssistWidgetHtml(false);
+    pollDevPorts();
+  } else {
+    // 'both' -> Dual-mode switcher inside the Assist Dock!
+    dock.innerHTML = omniWidgetTab === 'dev'
+      ? buildDevAssistWidgetHtml(true)
+      : buildSocialAssistWidgetHtml(true);
+    if (omniWidgetTab === 'dev') pollDevPorts();
+    else bindSocialDraftEvents();
+  }
+}
+
+function toggleOmniWidgetTab(tab) {
+  omniWidgetTab = tab;
+  renderAssistWidgetDock('both');
+}
+
+function buildSocialAssistWidgetHtml(showModeTabs) {
+  const tabButtons = showModeTabs ? `
+    <div style="display:flex; gap:5px;">
+      <button class="pod-mini-btn" onclick="toggleOmniWidgetTab('dev')">⌨️ DEV RADAR</button>
+      <button class="pod-mini-btn" style="background:var(--primary); color:#000;" onclick="toggleOmniWidgetTab('social')">⚡ SOCIAL HUB</button>
+    </div>
+  ` : `<span>LIVE CREATOR STUDIO</span>`;
+
+  return `
+    <div class="assist-widget-card">
+      <div class="assist-widget-header">
+        <span>⚡ SOCIAL STREAM & POST STUDIO</span>
+        ${tabButtons}
+      </div>
+      <textarea id="social-post-draft" class="cyber-note-area" style="min-height:76px; margin-bottom:8px;" placeholder="Draft your next X/Twitter post, Discord announcement, or stream title... #TronDesktop #CyberOS"></textarea>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-size:10.5px;">
+        <span id="social-char-count" style="color:var(--secondary);">0 / 280 CHARS</span>
+        <div style="display:flex; gap:6px;">
+          <button class="pod-mini-btn" onclick="insertHashtags()">+ #TAGS</button>
+          <button class="pod-mini-btn" onclick="copyPostAndLaunch('https://x.com/compose/post')">COPY & POST TO 𝕏</button>
+          <button class="pod-mini-btn" onclick="copyPostAndLaunch('https://discord.com/app')">COPY & OPEN DISCORD</button>
+        </div>
+      </div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; border-top:1px solid rgba(0,243,255,0.18); padding-top:8px;">
+        <button class="cyber-btn" onclick="launchOsTarget('https://x.com')">𝕏 FEED</button>
+        <button class="cyber-btn" onclick="launchOsTarget('https://youtube.com')">▶ YOUTUBE</button>
+        <button class="cyber-btn" onclick="launchOsTarget('https://twitch.tv')">📺 TWITCH</button>
+        <button class="cyber-btn" onclick="launchOsTarget('https://reddit.com')">👽 REDDIT</button>
+        <button class="cyber-btn" onclick="launchOsTarget('https://tiktok.com')">♪ TIKTOK</button>
+      </div>
+    </div>
+  `;
+}
+
+function bindSocialDraftEvents() {
+  const area = document.getElementById('social-post-draft');
+  const countEl = document.getElementById('social-char-count');
+  if (!area || !countEl) return;
+  area.value = localStorage.getItem('grid_social_draft') || '';
+  const updateCount = () => {
+    const len = area.value.length;
+    countEl.textContent = `${len} / 280 CHARS`;
+    countEl.style.color = len > 280 ? '#ff2a54' : 'var(--secondary)';
+    localStorage.setItem('grid_social_draft', area.value);
+  };
+  area.addEventListener('input', updateCount);
+  updateCount();
+}
+
+function insertHashtags() {
+  const area = document.getElementById('social-post-draft');
+  if (!area) return;
+  area.value = (area.value.trim() + ' #Cyberpunk #DesktopModding #DevSetup').trim();
+  area.dispatchEvent(new Event('input'));
+}
+
+function copyPostAndLaunch(url) {
+  const area = document.getElementById('social-post-draft');
+  if (area && area.value) {
+    navigator.clipboard.writeText(area.value).catch(() => {});
+    appendTerminalBlock(`[SOCIAL//STUDIO] Copied post draft to clipboard & launching ${url}`, 'term-line-sys');
+  }
+  launchOsTarget(url);
+}
+
+function buildDevAssistWidgetHtml(showModeTabs) {
+  const tabButtons = showModeTabs ? `
+    <div style="display:flex; gap:5px;">
+      <button class="pod-mini-btn" style="background:var(--primary); color:#000;" onclick="toggleOmniWidgetTab('dev')">⌨️ DEV RADAR</button>
+      <button class="pod-mini-btn" onclick="toggleOmniWidgetTab('social')">⚡ SOCIAL HUB</button>
+    </div>
+  ` : `<span>LOCALHOST & DEV TELEMETRY</span>`;
+
+  return `
+    <div class="assist-widget-card">
+      <div class="assist-widget-header">
+        <span>⌨️ DEV COMMAND & LOCALHOST PORT RADAR</span>
+        ${tabButtons}
+      </div>
+      <div style="font-size:10px; color:rgba(216,248,255,0.65); margin-bottom:6px;">ACTIVE LOCALHOST SERVERS (CLICK TO OPEN IN BROWSER):</div>
+      <div class="port-badge-grid" id="dev-port-list">
+        <span style="font-size:10.5px; color:var(--secondary);">Scanning active ports...</span>
+      </div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; border-top:1px solid rgba(0,243,255,0.18); padding-top:8px;">
+        <button class="cyber-btn" onclick="launchOsTarget('code')">⚡ VS CODE</button>
+        <button class="cyber-btn" onclick="runQuickCmd('git status')">🌿 GIT STATUS</button>
+        <button class="cyber-btn" onclick="runQuickCmd('cargo --version; rustc --version')">🦀 RUST CHECK</button>
+        <button class="cyber-btn" onclick="runQuickCmd('Get-NetTCPConnection -State Listen | Select-Object -First 10 LocalAddress, LocalPort, OwningProcess')">📡 ALL PORTS</button>
+      </div>
+    </div>
+  `;
+}
+
+async function pollDevPorts() {
+  const listEl = document.getElementById('dev-port-list');
+  if (!listEl) return;
+  try {
+    const res = await fetch('/api/dev-telemetry');
+    const data = await res.json();
+    if (data.ports && data.ports.length > 0) {
+      listEl.innerHTML = data.ports.map(p => `
+        <div class="port-pill" onclick="launchOsTarget('http://127.0.0.1:${p.port}')" title="PID: ${p.pid}">
+          <span>● :${p.port}</span>
+          <span style="opacity:0.75;">(${p.name})</span>
+        </div>
+      `).join('');
+    } else {
+      listEl.innerHTML = `<span style="font-size:10.5px; opacity:0.65;">No standard dev ports listening</span>`;
+    }
+  } catch (e) {}
+}
+
+/* ============================================================================
+   4. INSTALL / STARTUP WORKSPACE WIZARD LOGIC
+   ============================================================================ */
+function openProfileWizard() {
+  selectVisualLook(appState.visualLook || activeVisualLook || 'tron-legacy');
+  selectWizardProfile(appState.activeDeck || 'both');
+  document.getElementById('wiz-ask-every-start').checked = !!appState.askOnStartup;
+  document.getElementById('wiz-win-autostart').checked = !!appState.winAutoStart;
+  document.getElementById('profile-wizard-backdrop').classList.add('visible');
+}
+
+function selectWizardProfile(profile) {
+  wizardSelectedProfile = profile;
+  ['social', 'dev', 'both', 'blank'].forEach(p => {
+    const el = document.getElementById(`wiz-card-${p}`);
+    if (el) el.classList.toggle('selected', p === profile);
+  });
+}
+
+async function applyWizardSelection() {
+  const askEvery = document.getElementById('wiz-ask-every-start').checked;
+  const winAuto = document.getElementById('wiz-win-autostart').checked;
+
+  appState.askOnStartup = askEvery;
+  appState.firstSetupDone = true;
+
+  if (winAuto !== appState.winAutoStart) {
+    appState.winAutoStart = winAuto;
+    try {
+      const res = await fetch('/api/autostart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enable: winAuto })
+      });
+      const data = await res.json();
+      if (data.message) appendTerminalBlock(`[STARTUP] ${data.message}`, 'term-line-sys');
+    } catch (e) {}
+  }
+
+  document.getElementById('profile-wizard-backdrop').classList.remove('visible');
+  switchWorkspaceDeck(wizardSelectedProfile, false);
+  saveDesktopState();
+}
+
+/* ============================================================================
+   5. SMART DESKTOP NODES RENDERER
+   ============================================================================ */
+function getSvgIcon(kind) {
+  switch (kind) {
+    case 'grid':
+      return `<svg class="node-icon-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`;
+    case 'folder':
+      return `<svg class="node-icon-svg" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+    case 'note':
+      return `<svg class="node-icon-svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`;
+    case 'audio':
+      return `<svg class="node-icon-svg" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+    default:
+      return `<svg class="node-icon-svg" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`;
+  }
+}
+
+function renderDesktopNodes() {
+  const stage = document.getElementById('desktop-stage');
+  stage.innerHTML = '';
+
+  desktopNodes.forEach((node) => {
+    const el = document.createElement('div');
+    el.className = 'cyber-node';
+    el.id = node.id;
+    el.style.left = `${node.x}px`;
+    el.style.top = `${node.y}px`;
+
+    el.innerHTML = `
+      <div class="node-hex-wrap" title="Hover or Click to toggle pod • Drag to reposition">
+        ${getSvgIcon(node.icon)}
+        <span class="node-badge">${node.badge || node.type}</span>
+      </div>
+      <div class="node-title">${node.title}</div>
+      <div class="pod-connector"></div>
+      <div class="node-dropdown-pod" id="pod-${node.id}">
+        <div class="pod-header">
+          <span>// ${node.title} [${node.type.toUpperCase()}]</span>
+          <div class="pod-header-controls">
+            <button class="pod-mini-btn" onclick="togglePinNode('${node.id}', event)" id="pin-${node.id}">PIN</button>
+            <button class="pod-mini-btn" onclick="closeNodePod('${node.id}', event)">X</button>
+          </div>
+        </div>
+        <div class="pod-body" id="pod-body-${node.id}"></div>
+      </div>
+    `;
+
+    let hoverTimer = null;
+    el.addEventListener('mouseenter', () => {
+      if (node.trigger === 'both') {
+        clearTimeout(hoverTimer);
+        openNodePod(node.id);
+      }
+    });
+
+    el.addEventListener('mouseleave', () => {
+      if (!node.pinned) {
+        hoverTimer = setTimeout(() => {
+          el.classList.remove('open-node');
+        }, 260);
+      }
+    });
+
+    const hexWrap = el.querySelector('.node-hex-wrap');
+    makeDraggable(el, hexWrap, (nx, ny) => {
+      node.x = nx;
+      node.y = ny;
+      saveDesktopState();
+    }, () => {
+      const isOpen = el.classList.contains('open-node');
+      if (isOpen && node.pinned) {
+        node.pinned = false;
+        el.classList.remove('open-node');
+      } else {
+        node.pinned = true;
+        openNodePod(node.id);
+      }
+      updatePinButton(node.id);
+    });
+
+    stage.appendChild(el);
+    populatePodContent(node);
+  });
+}
+
+function openNodePod(nodeId) {
+  const el = document.getElementById(nodeId);
+  if (!el) return;
+  el.classList.add('open-node');
+  const node = desktopNodes.find(n => n.id === nodeId);
+  if (node && node.type === 'files' && !el.dataset.loadedFs) {
+    el.dataset.loadedFs = '1';
+    loadDirectoryIntoPod(node.id, node.path || 'HOME');
+  }
+}
+
+function closeNodePod(nodeId, ev) {
+  if (ev) ev.stopPropagation();
+  const node = desktopNodes.find(n => n.id === nodeId);
+  if (node) node.pinned = false;
+  const el = document.getElementById(nodeId);
+  if (el) el.classList.remove('open-node');
+  updatePinButton(nodeId);
+}
+
+function togglePinNode(nodeId, ev) {
+  if (ev) ev.stopPropagation();
+  const node = desktopNodes.find(n => n.id === nodeId);
+  if (!node) return;
+  node.pinned = !node.pinned;
+  updatePinButton(nodeId);
+}
+
+function updatePinButton(nodeId) {
+  const node = desktopNodes.find(n => n.id === nodeId);
+  const btn = document.getElementById(`pin-${nodeId}`);
+  if (btn && node) {
+    btn.textContent = node.pinned ? 'PINNED' : 'PIN';
+    btn.style.background = node.pinned ? 'var(--primary)' : 'transparent';
+    btn.style.color = node.pinned ? '#000' : 'var(--primary)';
+  }
+}
+
+function populatePodContent(node) {
+  const container = document.getElementById(`pod-body-${node.id}`);
+  if (!container) return;
+
+  if (node.type === 'subgrid') {
+    const apps = node.apps || [
+      { label: 'POWERSHELL', symbol: '>_', cmd: 'powershell.exe' },
+      { label: 'EXPLORER', symbol: '◈', cmd: 'explorer.exe' },
+      { label: 'NOTEPAD', symbol: '✎', cmd: 'notepad.exe' }
+    ];
+    container.innerHTML = `
+      <div class="sub-icon-grid">
+        ${apps.map(a => `
+          <div class="sub-app-item" onclick="launchOsTarget('${a.cmd.replace(/\\/g, '\\\\')}')">
+            <div class="sub-app-symbol">${a.symbol}</div>
+            <div class="sub-app-label">${a.label}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-top:10px; display:flex; gap:6px;">
+        <input type="text" id="quick-launch-${node.id}" placeholder="App or URL (e.g. notepad, https://...)" style="flex:1; background:#020a12; border:1px solid var(--panel-border); color:#fff; padding:4px 7px; font-size:11px; font-family:var(--font-mono);" />
+        <button class="pod-mini-btn" onclick="launchFromInput('${node.id}')">LAUNCH</button>
+      </div>
+    `;
+  } else if (node.type === 'files') {
+    container.innerHTML = `<div style="font-size:11px; color:var(--primary);">Scanning filesystem...</div>`;
+    loadDirectoryIntoPod(node.id, node.path || 'HOME');
+  } else if (node.type === 'notes') {
+    container.innerHTML = `
+      <textarea class="cyber-note-area" id="note-area-${node.id}" placeholder="Enter encrypted cyber notes...">${node.noteContent || ''}</textarea>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:10px; color:rgba(255,255,255,0.55);">
+        <span>AUTO-SAVED TO DECK STATE</span>
+        <button class="pod-mini-btn" onclick="saveNoteContent('${node.id}')">SAVE</button>
+      </div>
+    `;
+    const area = container.querySelector('textarea');
+    area.addEventListener('input', () => {
+      node.noteContent = area.value;
+      saveDesktopState();
+    });
+  } else if (node.type === 'audio') {
+    container.innerHTML = `
+      <canvas class="audio-viz-canvas" id="viz-${node.id}" width="290" height="64"></canvas>
+      <div id="tracks-${node.id}">
+        <div class="track-list-item" onclick="playCyberSynth('${node.id}', 'tron-grid', this)">
+          <span>▶ 01 // LIGHTCYCLE_OVERDRIVE.SYN</span>
+          <span style="color:var(--primary)">128 BPM</span>
+        </div>
+        <div class="track-list-item" onclick="playCyberSynth('${node.id}', 'matrix-pulse', this)">
+          <span>▶ 02 // NEBUCHADNEZZAR_BASS.SYN</span>
+          <span style="color:var(--secondary)">110 BPM</span>
+        </div>
+        <div class="track-list-item" onclick="playCyberSynth('${node.id}', 'ares-arp', this)">
+          <span>▶ 03 // ARES_MAINFRAME_ARP.SYN</span>
+          <span style="color:#ff2a54">140 BPM</span>
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-top:8px;">
+        <button class="pod-mini-btn" onclick="stopCyberSynth()">■ STOP AUDIO</button>
+        <span style="font-size:10px; color:rgba(255,255,255,0.55);">WEB-AUDIO PROCEDURAL SYNTH</span>
+      </div>
+    `;
+    initVisualizerCanvas(`viz-${node.id}`);
+  } else if (node.type === 'holo') {
+    container.innerHTML = `
+      <div style="width:100%; height:165px; border:1px solid var(--panel-border); background:#020810; display:flex; align-items:center; justify-content:center; margin-bottom:8px;">
+        <canvas id="holo-canvas-${node.id}" width="290" height="165"></canvas>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:10px;">
+        <span style="color:var(--primary);">3D WIREFRAME CONSTRUCT</span>
+        <button class="pod-mini-btn" onclick="cycleHoloShape('${node.id}')">MORPH GEOMETRY</button>
+      </div>
+    `;
+    startHoloWireframe(`holo-canvas-${node.id}`);
+  }
+}
+
+/* ============================================================================
+   6. REAL OS FILE SYSTEM POD BROWSER & HOLO PREVIEW
+   ============================================================================ */
+async function loadDirectoryIntoPod(nodeId, targetPath) {
+  const container = document.getElementById(`pod-body-${nodeId}`);
+  if (!container) return;
+  try {
+    const res = await fetch(`/api/fs?path=${encodeURIComponent(targetPath)}`);
+    const data = await res.json();
+    const node = desktopNodes.find(n => n.id === nodeId);
+    if (node && data.path) node.path = data.path;
+
+    const quickShortcuts = `
+      <div style="display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap;">
+        <button class="pod-mini-btn" onclick="loadDirectoryIntoPod('${nodeId}', 'HOME')">HOME</button>
+        <button class="pod-mini-btn" onclick="loadDirectoryIntoPod('${nodeId}', 'DESKTOP')">DESKTOP</button>
+        <button class="pod-mini-btn" onclick="loadDirectoryIntoPod('${nodeId}', 'SCRATCH')">REPOS</button>
+        <button class="pod-mini-btn" onclick="loadDirectoryIntoPod('${nodeId}', 'PICTURES')">PICS</button>
+        <button class="pod-mini-btn" onclick="loadDirectoryIntoPod('${nodeId}', 'DOWNLOADS')">DL</button>
+      </div>
+    `;
+
+    const parentBtn = data.parent
+      ? `<button class="pod-mini-btn" onclick="loadDirectoryIntoPod('${nodeId}', '${data.parent.replace(/\\/g, '\\\\')}')">⬆ UP</button>`
+      : '';
+
+    const rowsHtml = (data.items || []).map(item => {
+      const safePath = item.fullPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const safeName = item.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const icon = item.isDir ? '📁' : (['.png','.jpg','.jpeg','.gif','.webp'].includes(item.ext) ? '🖼️' : (['.mp3','.wav','.ogg','.flac'].includes(item.ext) ? '🎵' : '📄'));
+      const clickAction = item.isDir
+        ? `loadDirectoryIntoPod('${nodeId}', '${safePath}')`
+        : `handleFileItemClick('${safePath}', '${item.ext}', '${safeName}')`;
+
+      return `
+        <div class="fs-row" onclick="${clickAction}">
+          <div class="fs-name" title="${escapeHtml(item.fullPath)}">
+            <span>${icon}</span>
+            <span>${escapeHtml(item.name)}</span>
+          </div>
+          <span class="fs-size">${escapeHtml(item.size)}</span>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      ${quickShortcuts}
+      <div class="fs-path-bar">
+        <span title="${escapeHtml(data.path)}" style="overflow:hidden; text-overflow:ellipsis;">${escapeHtml(data.path)}</span>
+        ${parentBtn}
+      </div>
+      <div>${rowsHtml || '<div style="font-size:11px; opacity:0.6;">Empty directory</div>'}</div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div style="color:#ff4466; font-size:11px;">Error loading directory: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function handleFileItemClick(fullPath, ext, fileName) {
+  const imgExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
+  const audioExts = ['.mp3', '.wav', '.ogg', '.flac'];
+  const textExts = ['.txt', '.md', '.json', '.ps1', '.py', '.js', '.ts', '.html', '.css', '.rs', '.toml', '.log', '.ini'];
+
+  const toast = document.getElementById('holo-preview-toast');
+  const title = document.getElementById('preview-title');
+  const content = document.getElementById('preview-content');
+  const tokenParam = `&token=${encodeURIComponent(GRID_SESSION_TOKEN)}`;
+
+  if (imgExts.includes(ext)) {
+    title.textContent = `HOLO//IMAGE :: ${fileName}`;
+    content.innerHTML = `<img src="/api/file-content?path=${encodeURIComponent(fullPath)}${tokenParam}" style="max-width:62vw; max-height:55vh; border:1px solid var(--primary);" />`;
+    toast.classList.add('visible');
+  } else if (audioExts.includes(ext)) {
+    title.textContent = `HOLO//AUDIO STREAM :: ${fileName}`;
+    content.innerHTML = `<audio controls autoplay src="/api/file-content?path=${encodeURIComponent(fullPath)}${tokenParam}" style="width:360px;"></audio>`;
+    toast.classList.add('visible');
+  } else if (textExts.includes(ext)) {
+    const res = await fetch(`/api/file-content?path=${encodeURIComponent(fullPath)}`);
+    const txt = await res.text();
+    title.textContent = `HOLO//DATAFILE :: ${fileName}`;
+    content.innerHTML = `<pre style="margin:0; font-family:var(--font-mono); color:var(--secondary); white-space:pre-wrap; max-width:60vw;">${escapeHtml(txt.slice(0, 6000))}</pre>`;
+    toast.classList.add('visible');
+  } else {
+    launchOsTarget(fullPath);
+  }
+}
+
+function closeHoloPreview() {
+  document.getElementById('holo-preview-toast').classList.remove('visible');
+  document.getElementById('preview-content').innerHTML = '';
+}
+
+/* ============================================================================
+   7. PROCEDURAL CYBERPUNK WEB-AUDIO SYNTH & 3D HOLOGRAM
+   ============================================================================ */
+let audioCtx = null;
+let synthInterval = null;
+
+function playCyberSynth(nodeId, mode, rowEl) {
+  stopCyberSynth();
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  document.querySelectorAll('.track-list-item').forEach(el => el.classList.remove('playing'));
+  if (rowEl) rowEl.classList.add('playing');
+
+  const scales = {
+    'tron-grid': [110, 130.81, 146.83, 164.81, 196.00, 220, 261.63, 329.63],
+    'matrix-pulse': [82.41, 98.00, 110.00, 123.47, 146.83, 164.81],
+    'ares-arp': [73.42, 87.31, 110.00, 116.54, 146.83, 174.61, 220.00]
+  };
+  const notes = scales[mode] || scales['tron-grid'];
+  let step = 0;
+  const tempoMs = mode === 'ares-arp' ? 140 : (mode === 'tron-grid' ? 175 : 210);
+
+  synthInterval = setInterval(() => {
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    osc.type = mode === 'ares-arp' ? 'sawtooth' : 'square';
+    const freq = notes[step % notes.length] * (step % 8 === 0 ? 0.5 : 1);
+    osc.frequency.setValueAtTime(freq, now);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(450 + (step % 5) * 320, now);
+
+    gain.gain.setValueAtTime(0.11, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.17);
+
+    audioEnergy = 0.65;
+    step++;
+  }, tempoMs);
+}
+
+function stopCyberSynth() {
+  if (synthInterval) {
+    clearInterval(synthInterval);
+    synthInterval = null;
+  }
+  document.querySelectorAll('.track-list-item').forEach(el => el.classList.remove('playing'));
+}
+
+function initVisualizerCanvas(canvasId) {
+  const c = document.getElementById(canvasId);
+  if (!c) return;
+  const vctx = c.getContext('2d');
+  let phase = 0;
+  function renderViz() {
+    if (!document.getElementById(canvasId)) return;
+    vctx.fillStyle = 'rgba(0, 8, 14, 0.35)';
+    vctx.fillRect(0, 0, c.width, c.height);
+    const bars = 28;
+    const barW = (c.width - bars * 2) / bars;
+    for (let i = 0; i < bars; i++) {
+      const activeAmp = synthInterval ? (Math.sin(phase + i * 0.45) * 0.5 + 0.5) * 50 + 8 : 4 + Math.sin(phase + i * 0.3) * 3;
+      vctx.fillStyle = synthInterval ? '#00f3ff' : 'rgba(0, 243, 255, 0.35)';
+      vctx.fillRect(i * (barW + 2), c.height - activeAmp, barW, activeAmp);
+    }
+    phase += 0.18;
+    requestAnimationFrame(renderViz);
+  }
+  renderViz();
+}
+
+const holoShapes = {};
+function startHoloWireframe(canvasId) {
+  const c = document.getElementById(canvasId);
+  if (!c) return;
+  const hctx = c.getContext('2d');
+  holoShapes[canvasId] = { mode: 0, angle: 0 };
+  function draw() {
+    if (!document.getElementById(canvasId)) return;
+    const st = holoShapes[canvasId];
+    hctx.fillStyle = 'rgba(2, 8, 16, 0.35)';
+    hctx.fillRect(0, 0, c.width, c.height);
+    const cx = c.width / 2;
+    const cy = c.height / 2;
+    st.angle += 0.022;
+    hctx.strokeStyle = '#00f3ff';
+    hctx.lineWidth = 1.3;
+    hctx.beginPath();
+    const rings = st.mode === 0 ? 8 : 14;
+    for (let i = 0; i < rings; i++) {
+      const a = st.angle + (i * Math.PI * 2) / rings;
+      const rx = Math.cos(a) * 56;
+      const ry = Math.sin(a) * 26;
+      hctx.moveTo(cx, cy - 55);
+      hctx.lineTo(cx + rx, cy + ry);
+      hctx.lineTo(cx, cy + 55);
+      hctx.lineTo(cx - rx, cy - ry);
+      hctx.closePath();
+    }
+    hctx.stroke();
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+function cycleHoloShape(nodeId) {
+  const key = `holo-canvas-${nodeId}`;
+  if (holoShapes[key]) holoShapes[key].mode = (holoShapes[key].mode + 1) % 2;
+}
+
+/* ============================================================================
+   8. BORDER-DISSOLVING LIVE POWERSHELL TERMINAL
+   ============================================================================ */
+const termOutput = document.getElementById('term-output');
+const termInput = document.getElementById('term-input');
+const termPrompt = document.getElementById('term-prompt');
+const cmdHistory = [];
+let historyIdx = -1;
+
+function appendTerminalBlock(htmlContent, className = '') {
+  const div = document.createElement('div');
+  if (className) div.className = className;
+  div.innerHTML = htmlContent;
+  termOutput.appendChild(div);
+  termOutput.scrollTop = termOutput.scrollHeight;
+}
+
+appendTerminalBlock(
+  `╔══════════════════════════════════════════════════════════════════╗\n` +
+  `║  GRID//OS MATRIX TERMINAL — BORDERLESS DISSOLVING SHELL ACTIVE   ║\n` +
+  `║  Type 'social', 'dev', or 'both' to slide workspaces anytime!    ║\n` +
+  `╚══════════════════════════════════════════════════════════════════╝`,
+  'term-line-sys'
+);
+
+termInput.addEventListener('keydown', async (e) => {
+  audioEnergy = Math.min(1, audioEnergy + 0.15);
+
+  if (e.key === 'ArrowUp') {
+    if (cmdHistory.length > 0 && historyIdx < cmdHistory.length - 1) {
+      historyIdx++;
+      termInput.value = cmdHistory[cmdHistory.length - 1 - historyIdx];
+    }
+    e.preventDefault();
+    return;
+  }
+  if (e.key === 'ArrowDown') {
+    if (historyIdx > 0) {
+      historyIdx--;
+      termInput.value = cmdHistory[cmdHistory.length - 1 - historyIdx];
+    } else {
+      historyIdx = -1;
+      termInput.value = '';
+    }
+    e.preventDefault();
+    return;
+  }
+
+  if (e.key === 'Enter') {
+    const raw = termInput.value.trim();
+    termInput.value = '';
+    historyIdx = -1;
+    if (!raw) return;
+    cmdHistory.push(raw);
+
+    appendTerminalBlock(`${termPrompt.textContent} ${raw.replace(/</g, '&lt;')}`, 'term-line-cmd');
+
+    const low = raw.toLowerCase();
+    if (low === 'cls' || low === 'clear') {
+      clearTerminal();
+      return;
+    }
+    if (['social', 'dev', 'both', 'blank'].includes(low)) {
+      switchWorkspaceDeck(low);
+      appendTerminalBlock(`[WORKSPACE DECK] Sliding into ${low.toUpperCase()} environment...`, 'term-line-sys');
+      return;
+    }
+    if (low === 'setup' || low === 'wizard') {
+      openProfileWizard();
+      return;
+    }
+    if (low === 'diet' || low === 'turbo' || low === 'boost') {
+      openExplorerDietModal();
+      executeExplorerDiet();
+      return;
+    }
+    if (low === 'exit' || low === 'quit' || low === 'shutdown') {
+      shutdownGridOs();
+      return;
+    }
+    if (low === 'help') {
+      appendTerminalBlock(
+        `GRID//OS SHELL COMMANDS:\n` +
+        `  • social / dev / both     -> Slide workspace deck & assist widgets in!\n` +
+        `  • setup                   -> Open Startup & Profile Calibration Wizard\n` +
+        `  • matrix / tron / hybrid  -> Switch animated wallpaper shader\n` +
+        `  • theme                   -> Cycle Neon Cyan / Matrix Green / Ares Red\n` +
+        `  • Any PowerShell command  -> Executed live in your OS Runspace`
+      );
+      return;
+    }
+    if (['matrix', 'tron', 'hybrid'].includes(low)) {
+      setWallpaperMode(low);
+      appendTerminalBlock(`[WALLPAPER ENGINE SET TO: ${low.toUpperCase()}]`, 'term-line-sys');
+      return;
+    }
+    if (low === 'theme') {
+      cycleColorTheme();
+      appendTerminalBlock(`[COLOR THEME CYCLED]`, 'term-line-sys');
+      return;
+    }
+
+    await executeRealPowerShell(raw);
+  }
+});
+
+async function executeRealPowerShell(commandText) {
+  try {
+    const res = await fetch('/api/terminal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: commandText })
+    });
+    const data = await res.json();
+    if (data.cwd) termPrompt.textContent = `PS ${data.cwd}>`;
+    if (data.output) appendTerminalBlock(data.output.replace(/</g, '&lt;'));
+  } catch (err) {
+    appendTerminalBlock(`[ERR] ${err.message}`);
+  }
+}
+
+function runQuickCmd(cmd) {
+  termInput.value = cmd;
+  termInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+}
+
+function clearTerminal() {
+  termOutput.innerHTML = '';
+}
+
+const termWrap = document.getElementById('dissolving-terminal-wrap');
+const termHandle = document.getElementById('term-drag-handle');
+makeDraggable(termWrap, termHandle);
+
+/* ============================================================================
+   9. DRAG ENGINE, STATE PERSISTENCE & TELEMETRY
+   ============================================================================ */
+let activeDragMoveHandler = null;
+let activeDragUpHandler = null;
+
+function makeDraggable(containerEl, handleEl, onSavePos, onClickOnly) {
+  let startX = 0, startY = 0, origLeft = 0, origTop = 0, moved = false, dragging = false;
+
+  handleEl.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+    dragging = true;
+    moved = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    const rect = containerEl.getBoundingClientRect();
+    origLeft = rect.left;
+    origTop = rect.top - (containerEl.parentElement.id === 'desktop-stage' ? 48 : 0);
+    containerEl.classList.add('dragging-node');
+    containerEl.style.right = 'auto';
+    containerEl.style.bottom = 'auto';
+
+    activeDragMoveHandler = (ev) => {
+      if (!dragging) return;
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+      if (moved) {
+        const nx = Math.max(0, Math.min(window.innerWidth - 90, origLeft + dx));
+        const ny = Math.max(0, Math.min(window.innerHeight - 90, origTop + dy));
+        containerEl.style.left = `${nx}px`;
+        containerEl.style.top = `${ny}px`;
+      }
+    };
+
+    activeDragUpHandler = () => {
+      window.removeEventListener('mousemove', activeDragMoveHandler);
+      window.removeEventListener('mouseup', activeDragUpHandler);
+      if (!dragging) return;
+      dragging = false;
+      containerEl.classList.remove('dragging-node');
+      if (moved && onSavePos) {
+        onSavePos(parseInt(containerEl.style.left, 10), parseInt(containerEl.style.top, 10));
+      } else if (!moved && onClickOnly) {
+        onClickOnly();
+      }
+    };
+
+    window.addEventListener('mousemove', activeDragMoveHandler);
+    window.addEventListener('mouseup', activeDragUpHandler);
+    e.preventDefault();
+  });
+}
+
+async function launchOsTarget(target) {
+  try {
+    await fetch('/api/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target })
+    });
+  } catch (e) {}
+}
+
+function launchFromInput(nodeId) {
+  const inp = document.getElementById(`quick-launch-${nodeId}`);
+  if (inp && inp.value.trim()) {
+    launchOsTarget(inp.value.trim());
+    inp.value = '';
+  }
+}
+
+async function pinToDesktopLayer() {
+  const res = await fetch('/api/window-mode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'desktop-bottom' })
+  });
+  const data = await res.json();
+  appendTerminalBlock(`[WIN32 SHELL] ${data.message}`, 'term-line-sys');
+}
+
+function openNewNodeModal() {
+  document.getElementById('modal-backdrop').classList.add('visible');
+}
+function closeNewNodeModal() {
+  document.getElementById('modal-backdrop').classList.remove('visible');
+}
+
+function createCustomNode() {
+  const title = escapeHtml(document.getElementById('new-node-title').value.trim() || 'CUSTOM//NODE');
+  const type = document.getElementById('new-node-type').value;
+  const target = document.getElementById('new-node-target').value.trim();
+  const trigger = document.getElementById('new-node-trigger').value;
+
+  const iconMap = { files: 'folder', subgrid: 'grid', notes: 'note', audio: 'audio', holo: 'image' };
+  const newNode = {
+    id: 'node-' + Date.now(),
+    title,
+    badge: type.toUpperCase().slice(0, 5),
+    type,
+    trigger,
+    x: 80 + (desktopNodes.length * 115) % 600,
+    y: 165,
+    icon: iconMap[type] || 'grid',
+    path: target || 'HOME',
+    noteContent: target || '// New Cyber Note'
+  };
+
+  desktopNodes.push(newNode);
+  saveDesktopState();
+  renderDesktopNodes();
+  closeNewNodeModal();
+}
+
+function saveNoteContent(nodeId) {
+  saveDesktopState();
+  appendTerminalBlock(`[NEURAL//LOG] Saved note state for ${nodeId}`, 'term-line-sys');
+}
+
+let saveStateDebounceTimer = null;
+function saveDesktopState() {
+  clearTimeout(saveStateDebounceTimer);
+  saveStateDebounceTimer = setTimeout(async () => {
+    try {
+      appState.decks[appState.activeDeck] = desktopNodes;
+      await fetch('/api/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(appState)
+      });
+    } catch (e) {}
+  }, 250);
+}
+
+async function loadDesktopState() {
+  try {
+    const res = await fetch('/api/state');
+    const data = await res.json();
+    if (data && data.decks) {
+      appState = { ...appState, ...data };
+    }
+  } catch (e) {}
+
+  selectVisualLook(appState.visualLook || 'tron-legacy');
+  switchWorkspaceDeck(appState.activeDeck || 'both', true);
+
+  // Show the calibration wizard on first install OR if user enabled "Ask on every launch"!
+  if (!appState.firstSetupDone || appState.askOnStartup) {
+    openProfileWizard();
+  }
+}
+
+async function pollTelemetry() {
+  try {
+    const res = await fetch('/api/telemetry');
+    const t = await res.json();
+    if (t.cpuLoad !== undefined) {
+      document.getElementById('cpu-bar').style.width = `${t.cpuLoad}%`;
+      document.getElementById('cpu-text').textContent = `${t.cpuLoad}%`;
+    }
+    if (t.ramPct !== undefined) {
+      document.getElementById('ram-bar').style.width = `${t.ramPct}%`;
+      document.getElementById('ram-text').textContent = `${t.ramPct}%`;
+    }
+    if (t.explorerMB !== undefined) {
+      const expEl = document.getElementById('explorer-mb-text');
+      if (expEl) expEl.textContent = `${t.explorerMB} MB`;
+      const dietExpEl = document.getElementById('diet-stat-explorer');
+      if (dietExpEl) dietExpEl.textContent = `${t.explorerMB} MB`;
+    }
+    if (t.latencyMs !== undefined) {
+      const latEl = document.getElementById('diet-stat-latency');
+      if (latEl) latEl.textContent = `${t.latencyMs} ms`;
+    }
+    if (t.occluded !== undefined) {
+      desktopOccluded = !!t.occluded;
+    }
+    if (t.cwd) {
+      termPrompt.textContent = `PS ${t.cwd}>`;
+    }
+  } catch (e) {}
+  if (appState.activeDeck === 'dev' || (appState.activeDeck === 'both' && omniWidgetTab === 'dev')) {
+    pollDevPorts();
+  }
+}
+
+function openExplorerDietModal() {
+  pollTelemetry();
+  document.getElementById('diet-modal-backdrop').classList.add('visible');
+}
+
+function closeExplorerDietModal() {
+  document.getElementById('diet-modal-backdrop').classList.remove('visible');
+}
+
+async function executeExplorerDiet() {
+  const logEl = document.getElementById('diet-proc-log');
+  logEl.innerHTML = `<div style="color:var(--secondary);">Executing Win32 EmptyWorkingSet & Shell Hollowing across explorer.exe and shell hosts...</div>`;
+  try {
+    const payload = {
+      hideNativeIcons: document.getElementById('diet-opt-icons').checked,
+      killWidgets: document.getElementById('diet-opt-widgets').checked,
+      hyperSnap: document.getElementById('diet-opt-hypersnap').checked
+    };
+    const res = await fetch('/api/explorer-diet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.ok) {
+      totalSessionSavedMB = Math.round((totalSessionSavedMB + (data.totalSavedMB || 0)) * 10) / 10;
+      document.getElementById('diet-stat-saved').textContent = `${totalSessionSavedMB} MB`;
+      const rows = (data.processes || []).map(p => `
+        <div class="diet-proc-row">
+          <span style="color:#fff;"><b>${p.name}.exe</b> <span style="opacity:0.5;">(PID ${p.pid})</span></span>
+          <span><span style="opacity:0.65;">${p.beforeMB} MB ➔</span> <b style="color:var(--primary);">${p.afterMB} MB</b> <span style="color:var(--secondary);">(-${p.savedMB} MB)</span></span>
+        </div>
+      `).join('');
+      logEl.innerHTML = `
+        <div style="color:var(--secondary); font-weight:700; margin-bottom:6px;">
+          ✓ SHELL HOLLOWING COMPLETE: ${data.totalBeforeMB} MB ➔ ${data.totalAfterMB} MB (FREED ${data.totalSavedMB} MB PHYSICAL RAM)
+        </div>
+        ${rows}
+      `;
+      appendTerminalBlock(`[EXPLORER//DIET] Reclaimed ${data.totalSavedMB} MB RAM from Windows Shell (${data.totalBeforeMB} MB -> ${data.totalAfterMB} MB)`, 'term-line-sys');
+      pollTelemetry();
+    }
+  } catch (err) {
+    logEl.innerHTML = `<div style="color:#ff2a54;">Error: ${err.message}</div>`;
+  }
+}
+
+async function shutdownGridOs() {
+  try {
+    await restoreStockExplorer();
+    await fetch('/api/shutdown', { method: 'POST' });
+  } catch (e) {}
+  window.close();
+}
+
+async function restoreStockExplorer() {
+  await fetch('/api/window-mode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'show-native-icons' })
+  });
+  await fetch('/api/explorer-diet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hideNativeIcons: false, killWidgets: false, hyperSnap: false })
+  });
+  appendTerminalBlock(`[EXPLORER//DIET] Restored native Windows desktop icons and default animations.`, 'term-line-sys');
+}
+
+setInterval(() => {
+  const now = new Date();
+  document.getElementById('clock-display').textContent = now.toTimeString().split(' ')[0];
+}, 1000);
+
+setInterval(pollTelemetry, 4000);
+loadDesktopState();
+pollTelemetry();
+</script>
+</body>
+</html>
